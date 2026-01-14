@@ -1,0 +1,350 @@
+{
+  "name": "S1-04 Setter Message Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/touchpoint_queue?status=eq.pending&order=scheduled_for.asc&limit=50",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_queue",
+      "name": "Get Pending Queue Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_items",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has_items",
+      "name": "Has Queue Items?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "split_batches",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/contacts_sync?id=eq.{{ $json.contact_sync_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_contact",
+      "name": "Get Contact Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueItem = $('Process in Batches').first().json;\nconst contact = $input.first().json[0];\n\n// Select prompt based on investor status\nconst promptMap = {\n  'hot_lead': 'setter_hot_lead',\n  'dormant': 'setter_dormant_reengagement',\n  'objection_holder': 'setter_objection_response',\n  'active_investor': 'setter_update_base',\n  'passive_investor': 'setter_update_base',\n  'jv_potential': 'setter_update_base',\n  'tire_kicker': 'setter_update_base'\n};\n\nconst promptId = promptMap[contact?.investor_status] || 'setter_update_base';\n\nreturn {\n  json: {\n    queue_id: queueItem.id,\n    contact: contact,\n    prompt_id: promptId,\n    channel: queueItem.channel,\n    message_type: queueItem.message_type\n  }\n};"
+      },
+      "id": "select_prompt",
+      "name": "Select Prompt by Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/prompts?prompt_id=eq.{{ $json.prompt_id }}&is_active=eq.true&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_prompt",
+      "name": "Get Prompt from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 300,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\n        $node['Get Prompt from Supabase'].json[0]?.content + \n        '\\n\\nContact name: ' + ($node['Select Prompt by Status'].json.contact?.first_name || 'there') +\n        '\\nSegment: ' + ($node['Select Prompt by Status'].json.contact?.segment || 'general') +\n        '\\nStatus: ' + ($node['Select Prompt by Status'].json.contact?.investor_status || 'unknown') +\n        '\\nLast notes: ' + ($node['Select Prompt by Status'].json.contact?.latest_notes?.substring(0, 500) || 'No previous notes') +\n        '\\nChannel: ' + $node['Select Prompt by Status'].json.channel\n      ) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude_generate",
+      "name": "Claude: Generate Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst prevData = $node['Select Prompt by Status'].first().json;\n\ntry {\n  const text = response.content[0].text;\n  \n  // For email, split subject and body\n  let subject = null;\n  let body = text;\n  \n  if (prevData.channel === 'email') {\n    const lines = text.split('\\n');\n    if (lines[0].toLowerCase().startsWith('subject:')) {\n      subject = lines[0].replace(/^subject:\\s*/i, '').trim();\n      body = lines.slice(2).join('\\n').trim(); // Skip subject and blank line\n    }\n  }\n  \n  return {\n    json: {\n      queue_id: prevData.queue_id,\n      contact: prevData.contact,\n      channel: prevData.channel,\n      subject: subject,\n      message_content: body,\n      generated_at: new Date().toISOString(),\n      success: true\n    }\n  };\n} catch (error) {\n  return {\n    json: {\n      queue_id: prevData.queue_id,\n      success: false,\n      error: error.message\n    }\n  };\n}"
+      },
+      "id": "parse_message",
+      "name": "Parse Generated Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/touchpoint_queue?id=eq.{{ $json.queue_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message_content\": {{ JSON.stringify($json.message_content) }},\n  \"status\": \"{{ $json.success ? 'processing' : 'failed' }}\"\n}",
+        "options": {}
+      },
+      "id": "update_queue",
+      "name": "Update Queue with Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "id": "trigger_sender",
+      "name": "Trigger Sender Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [2440, 200],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Queue Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Queue Items": {
+      "main": [
+        [
+          {
+            "node": "Has Queue Items?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Queue Items?": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Details": {
+      "main": [
+        [
+          {
+            "node": "Select Prompt by Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Prompt by Status": {
+      "main": [
+        [
+          {
+            "node": "Get Prompt from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Prompt from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Claude: Generate Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Generate Message": {
+      "main": [
+        [
+          {
+            "node": "Parse Generated Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generated Message": {
+      "main": [
+        [
+          {
+            "node": "Update Queue with Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Queue with Message": {
+      "main": [
+        [
+          {
+            "node": "Trigger Sender Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["Austin CG", "System 1", "AI Setter"]
+}

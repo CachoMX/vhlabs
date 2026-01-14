@@ -1,0 +1,1051 @@
+# Product Requirements Document (PRD)
+# Austin CG - AI Investor Engagement Platform
+
+## Project Overview
+
+### Client
+- **Client Name**: Austin (CQ Marketing / CG)
+- **Agency Contact**: Carlos @ Vixi Agency
+- **Project Code**: austin-cg-investor-engine
+
+### Executive Summary
+Build a 4-system AI-driven platform for investor engagement, content processing, and multi-channel distribution. The system parses call notes, detects investor intent, segments contacts, extracts content hooks from workshops/calls, and orchestrates personalized outreach across email, SMS, and social channels.
+
+### Core Philosophy
+"A setter where there's no intention to close the person, you're just getting an update, people have way lower sales resistance."
+
+---
+
+## Architecture Decision
+
+### Stack
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Orchestration | n8n (cloud.n8n.io) | Workflow automation, AI processing, integrations |
+| CRM/Delivery | GoHighLevel (GHL) | Contact management, SMS/email sending, pipelines |
+| Database | Supabase | Content library, prompts, analytics, cross-system data |
+| Custom UI | Next.js (via Claude Code) | Admin dashboard for content pipeline visibility |
+| AI | Claude API / OpenAI | Content extraction, note parsing, conversational AI |
+
+### Why Hybrid (Not GHL-Only)
+1. GHL lacks native Slack integration
+2. GHL's AI cannot handle complex NLP extraction
+3. No relational database for content library in GHL
+4. Instagram automation unreliable in GHL
+5. Cross-system data model requires proper DB schema
+6. Testing/QA needs external logging
+
+---
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     SLACK (Content Intake)                      │
+│              Ashley tags calls/workshops with reactions         │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │ Webhook (reaction events)
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      n8n Cloud (Brain)                          │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ System 1: AI Setter Engine                               │   │
+│  │ • Note parsing workflow                                  │   │
+│  │ • Intent detection                                       │   │
+│  │ • Segmentation rules                                     │   │
+│  │ • Trigger GHL follow-ups                                 │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ System 2: Content Processing Pipeline                    │   │
+│  │ • Slack webhook receiver                                 │   │
+│  │ • AI content agent (hook/clip extraction)                │   │
+│  │ • Transcript processing                                  │   │
+│  │ • Route to 9 audience segments                           │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ System 3: Distribution Engine                            │   │
+│  │ • Audience-to-channel routing                            │   │
+│  │ • Email teaser generation                                │   │
+│  │ • Social posting triggers                                │   │
+│  │ • Cross-promotion logic                                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└───────────┬─────────────────┬─────────────────┬─────────────────┘
+            │                 │                 │
+            ▼                 ▼                 ▼
+┌───────────────────┐ ┌───────────────┐ ┌─────────────────────────┐
+│    Supabase       │ │     GHL       │ │   External APIs         │
+│  ────────────     │ │ ───────────   │ │ ───────────────         │
+│  • contents       │ │ • Contacts    │ │ • Creatify (clips)      │
+│  • hooks          │ │ • Tags        │ │ • Instagram Graph API   │
+│  • prompts        │ │ • Workflows   │ │ • Slack API             │
+│  • segments       │ │ • SMS/Email   │ │ • Call recording source │
+│  • distributions  │ │ • Pipelines   │ │                         │
+│  • analytics      │ │               │ │                         │
+└───────────────────┘ └───────────────┘ └─────────────────────────┘
+            │                 │
+            └────────┬────────┘
+                     ▼
+        ┌─────────────────────────┐
+        │   Admin Dashboard       │
+        │   (Next.js)             │
+        │   • Content pipeline    │
+        │   • Prompt management   │
+        │   • Analytics           │
+        └─────────────────────────┘
+```
+
+---
+
+## SYSTEM 1: AI Setter & Investor Intelligence Engine
+
+### Purpose
+Conversational relationship layer that parses call notes, identifies investor status/intent signals, segments contacts, and delivers personalized "update" check-ins (not sales pitches).
+
+### P0 Deliverables
+
+#### 1.1 Investor Status Taxonomy
+Define contact buckets based on behavior signals:
+
+| Status | Definition | Signals |
+|--------|------------|---------|
+| hot_lead | Strong buying intent, <3mo timeline | "ready to close", "looking now", specific property interest |
+| active_investor | High engagement, recent activity | Multiple interactions, deal discussions |
+| passive_investor | Interested but not leading | "open to opportunities", "maybe later" |
+| jv_potential | Joint venture interest | "looking for partners", capital discussions |
+| tire_kicker | Low intent, browsing | "just curious", no follow-through |
+| objection_holder | Expressed barriers | "too expensive", "bad timing", specific concerns |
+| dormant | Past engagement, inactive >6mo | No response, dropped off |
+| cold | No response history | Never engaged |
+
+#### 1.2 Note Parsing Logic
+Extract structured data from call notes:
+
+**Input**: Raw call notes text
+**Output**: JSON with extracted fields
+
+```json
+{
+  "intent_signals": ["buying", "timeline_short"],
+  "objections": ["price_concern"],
+  "timeline": "Q1_2025",
+  "budget_range": "$100k-$500k",
+  "property_interests": ["multifamily", "flip"],
+  "sentiment": "positive",
+  "recommended_status": "hot_lead",
+  "follow_up_priority": "high",
+  "key_quotes": ["I want to close something by February"]
+}
+```
+
+**AI Prompt for Note Parsing**:
+```
+You are an investor relationship analyst. Parse the following call notes and extract:
+
+1. Intent signals (buying, selling, partnering, learning, none)
+2. Objections mentioned (price, timing, trust, knowledge, none)
+3. Timeline indicators (immediate, 1-3 months, 3-6 months, 6+ months, unclear)
+4. Budget/deal size mentions
+5. Property type interests
+6. Overall sentiment (positive, neutral, negative)
+7. Recommended status bucket (from taxonomy)
+8. Follow-up priority (high, medium, low)
+9. Key quotes worth noting
+
+Call Notes:
+{notes_text}
+
+Respond in JSON format only.
+```
+
+#### 1.3 Conversational AI Setter Configuration
+System instructions for "update" framing (non-salesy):
+
+**Base System Prompt**:
+```
+You are a friendly relationship manager for a real estate investing firm. Your role is to send casual check-ins and updates, NOT to sell or close deals.
+
+Core principles:
+- Frame every message as an "update" or "check-in"
+- Keep messages under 100 words
+- Use conversational, warm tone
+- Reference past interactions when available
+- End with an open question (not a sales question)
+- Never use high-pressure language
+- Match the contact's communication style
+
+Contact context will be provided. Generate appropriate SMS or email message.
+```
+
+**Segment-Specific Variations**:
+- Hot Lead: More frequent, reference specific interests
+- Dormant: Re-engagement focus, share valuable content
+- Objection Holder: Address concerns indirectly with value
+
+#### 1.4 Segmentation Rules Engine
+Triggers that move contacts between segments:
+
+| Trigger | From | To | Action |
+|---------|------|-----|--------|
+| 3+ responses + buying intent | any | hot_lead | Increase touchpoint frequency |
+| No response 30 days | active | passive | Reduce frequency |
+| No response 180 days | any | dormant | Move to re-engagement sequence |
+| "Not interested" reply | any | cold | Stop automation, flag for review |
+| Objection detected | any | objection_holder | Trigger objection-handling sequence |
+| JV language detected | any | jv_potential | Route to partnership track |
+| Positive response after dormant | dormant | active | Resume regular cadence |
+
+### P1 Deliverables
+
+#### 1.5 Follow-up Sequence Library
+Templates per segment (3-5 variants each):
+
+**Hot Lead Templates**:
+1. "Hey {name}, quick update - saw a {property_type} come through that reminded me of what you mentioned. Want me to send details?"
+2. "Hi {name}, checking in on your search. Market's moving in {area} - anything I can help with?"
+3. "Hey {name}, just touching base. How's the timeline looking on your end?"
+
+**Dormant Re-engagement Templates**:
+1. "Hey {name}, it's been a minute! Sharing a quick market insight I thought you'd find interesting: {content_link}"
+2. "Hi {name}, hope all is well. We've had some interesting deals come through - still keeping an eye on the market?"
+3. "Hey {name}, just a friendly check-in. Things have been busy here - how about you?"
+
+**Objection Holder Templates**:
+1. "Hey {name}, no pitch here - just wanted to share this free resource on {objection_topic}. Thought of you."
+2. "Hi {name}, saw this case study that addresses {objection}. Take a look when you have a sec: {link}"
+
+#### 1.6 Touchpoint Scheduling Logic
+Frequency rules per segment:
+
+| Segment | Frequency | Channel Priority | Time Window |
+|---------|-----------|------------------|-------------|
+| hot_lead | Every 5-7 days | SMS > Email | 10am-2pm |
+| active_investor | Every 10-14 days | Email > SMS | 9am-5pm |
+| passive_investor | Every 21 days | Email | 10am-12pm |
+| jv_potential | Every 14 days | Email | 9am-11am |
+| objection_holder | Every 30 days | Email (value content) | any |
+| dormant | Every 45 days | Email | 10am-12pm |
+| cold | Do not contact | - | - |
+
+#### 1.7 Email/SMS Integration (GHL)
+Deliverability optimization requirements:
+- Segment lists to <500 sends per domain per day
+- Use verified sending domains
+- Implement DKIM/SPF/DMARC
+- Warm-up new domains (50→100→250→500 over 4 weeks)
+- Auto-remove hard bounces
+- Honor opt-outs immediately
+- Track open/click rates per segment
+
+### P2 Deliverables
+
+#### 1.8 Response Handling Workflows
+When contact replies:
+
+| Reply Type | Action |
+|------------|--------|
+| Positive/interested | → hot_lead, schedule call, notify team |
+| Question | → AI generates response, human review queue |
+| Objection | → objection_holder, trigger relevant content |
+| Negative/unsubscribe | → cold, stop all automation |
+| Neutral | → Keep current segment, continue sequence |
+
+---
+
+## SYSTEM 2: Content Intelligence & Processing Pipeline
+
+### Purpose
+Ingest calls/workshops via Slack, classify by audience segment using reaction-based tagging, extract hooks/clips/transcripts via AI, and prepare content for distribution.
+
+### Workflow
+```
+INTAKE (Slack + Tags) → PROCESSING (AI Extraction) → OUTPUT (Content Library)
+```
+
+### P0 Deliverables
+
+#### 2.1 Audience Taxonomy (9 Segments)
+
+| ID | Segment | Description | Content Focus |
+|----|---------|-------------|---------------|
+| 1 | re_investors | Active property buyers/flippers | Deal analysis, ROI, strategies |
+| 2 | house_buyers | End-users seeking homes | Home buying tips, financing |
+| 3 | bird_doggers | Deal scouts (finders fees) | Finding deals, negotiation |
+| 4 | jv_partners | Joint venture seekers | Partnership structures, capital |
+| 5 | coaching_students | Pace's group enrollees | Training, mindset, implementation |
+| 6 | wholesalers | Deal flippers | Wholesale strategies, contracts |
+| 7 | lenders | Funding providers | Market data, deal flow, returns |
+| 8 | sellers | Property owners listing | Selling process, timing |
+| 9 | general_leads | Unsegmented prospects | General education, intro content |
+
+#### 2.2 Reaction/Tag Mapping
+Slack emoji → Audience + Content Type:
+
+| Emoji | Audience | Content Type |
+|-------|----------|--------------|
+| 🏠 | re_investors | Property Analysis |
+| 🏡 | house_buyers | Home Buying Guide |
+| 🐶 | bird_doggers | Deal Finding Tips |
+| 🤝 | jv_partners | Partnership Content |
+| 📚 | coaching_students | Training Material |
+| 💰 | wholesalers | Wholesale Strategy |
+| 🏦 | lenders | Market/Funding Update |
+| 📝 | sellers | Selling Guide |
+| ❓ | general_leads | General FAQ |
+| 🔥 | (any) | HIGH PRIORITY - Process First |
+| ⭐ | (any) | FEATURED - Extra Distribution |
+
+**Multi-tag support**: Single content can have multiple reactions for multi-audience distribution.
+
+#### 2.3 Slack-to-Workflow Integration
+n8n workflow design:
+
+**Trigger**: Slack webhook on `reaction_added` event
+**Filter**: Only process reactions in designated channel(s)
+**Extract**: 
+- Message content (call recording link, description)
+- Reaction emoji
+- Reactor user (Ashley or approved taggers)
+- Timestamp
+
+**Webhook Payload Expected**:
+```json
+{
+  "event": {
+    "type": "reaction_added",
+    "reaction": "🏠",
+    "item": {
+      "channel": "C123456",
+      "ts": "1234567890.123456"
+    },
+    "user": "U_ASHLEY"
+  }
+}
+```
+
+#### 2.4 AI Content Agent Configuration
+System prompt for hook/clip extraction:
+
+```
+You are a content intelligence agent for a real estate education company. Your task is to analyze call recordings/transcripts and extract valuable content.
+
+For each piece of content, extract:
+
+1. HOOKS (5-10)
+   - Quotable phrases under 50 words
+   - Attention-grabbing statements
+   - Surprising insights or statistics
+   - Emotional moments
+   - Actionable advice
+
+2. CLIP TIMESTAMPS (3-5)
+   - Start and end times for viral-worthy segments
+   - Each clip should be 30-90 seconds
+   - Focus on complete thoughts/stories
+   - Prioritize high-energy moments
+
+3. STRUCTURED TRANSCRIPT
+   - Speaker labels if multiple speakers
+   - Topic timestamps
+   - Key points summary
+
+4. METADATA
+   - Primary audience segment
+   - Secondary audiences (if applicable)
+   - Content type (educational, motivational, case study, Q&A)
+   - Urgency/timeliness (evergreen vs time-sensitive)
+   - Suggested headline
+
+Input format: Transcript text or audio transcription
+Output format: JSON
+
+{
+  "hooks": [
+    {"text": "...", "timestamp": "00:05:23", "hook_type": "insight"}
+  ],
+  "clips": [
+    {"start": "00:05:00", "end": "00:06:30", "description": "...", "priority": 1}
+  ],
+  "transcript": {
+    "full_text": "...",
+    "topics": [{"topic": "...", "start": "00:00:00"}],
+    "summary": "..."
+  },
+  "metadata": {
+    "primary_audience": "re_investors",
+    "secondary_audiences": ["wholesalers"],
+    "content_type": "case_study",
+    "evergreen": true,
+    "headline": "..."
+  }
+}
+```
+
+### P1 Deliverables
+
+#### 2.5 Ashley Tagging SOP
+
+**Standard Operating Procedure: Content Tagging**
+
+**Purpose**: Consistent tagging of call/workshop content for automated processing.
+
+**Process**:
+1. Monitor #content-review channel for new recordings
+2. Listen to 2-3 minute sample (or full if short)
+3. Identify primary audience(s) from taxonomy
+4. Add appropriate reaction emoji(s)
+5. Add 🔥 if high priority (timely/exceptional)
+6. Add ⭐ if featured (extra distribution worthy)
+
+**Decision Matrix**:
+- Single clear audience → One emoji
+- Multiple audiences → Multiple emojis (max 3)
+- Unsure → Add ❓ and comment for review
+
+**Timing**: Tag within 24 hours of posting
+
+**Quality Check**: Weekly review of 10 random tags for consistency
+
+#### 2.6 Transcript Processing Pipeline
+
+**Pipeline Steps**:
+1. **Ingest**: Receive content link from Slack
+2. **Transcribe**: If audio/video, send to transcription (Whisper API or similar)
+3. **Clean**: Remove filler words, normalize speaker labels
+4. **Structure**: Parse into sections with timestamps
+5. **Extract**: Send to AI content agent
+6. **Store**: Save to Supabase content library
+7. **Queue**: Add to distribution queue
+
+**n8n Workflow Nodes**:
+```
+Slack Trigger → Get Message → Check Media Type → 
+  IF audio/video → Transcription API → Clean Text
+  IF text → Clean Text
+→ AI Content Agent → Parse JSON → Store Supabase → 
+Queue for Distribution → Notify Complete
+```
+
+#### 2.7 Creatify Integration
+[ASSUMPTION: Creatify API supports automated clip generation]
+
+**Integration Points**:
+1. After AI extracts clip timestamps
+2. Send video URL + timestamps to Creatify
+3. Receive generated clip URLs
+4. Store clip URLs in content record
+5. Queue clips for distribution
+
+**API Call Structure** (placeholder - verify with Creatify docs):
+```json
+POST /api/clips
+{
+  "source_url": "https://...",
+  "clips": [
+    {"start": "00:05:00", "end": "00:06:30", "output_format": "mp4"}
+  ],
+  "webhook_url": "https://n8n.../webhook/creatify-complete"
+}
+```
+
+### P2 Deliverables
+
+#### 2.8 Content Scoring/Prioritization
+
+**Scoring Algorithm**:
+```
+base_score = 50
+
+# Hook quality
+hook_score = min(num_hooks * 5, 25)  # Max 25 points
+
+# Priority indicators
+if has_fire_emoji: base_score += 20
+if has_star_emoji: base_score += 15
+
+# Recency
+days_old = (now - created_at).days
+recency_score = max(0, 20 - days_old)  # Decays over 20 days
+
+# Engagement prediction (based on historical similar content)
+if content_type == "case_study": engagement_bonus = 10
+if audience in high_engagement_audiences: engagement_bonus += 5
+
+total_score = base_score + hook_score + recency_score + engagement_bonus
+priority = "high" if total_score > 80 else "medium" if total_score > 50 else "low"
+```
+
+---
+
+## SYSTEM 3: Multi-Channel Distribution Engine
+
+### Purpose
+Route processed content to appropriate audience segments, generate teaser emails, post to social platforms, and coordinate cross-channel amplification.
+
+### P0 Deliverables
+
+#### 3.1 Email Teaser Templates
+3-5 sentence format with video link:
+
+**Template Structure**:
+```
+Subject: {attention_hook} 👀
+
+Hey {first_name},
+
+{personalized_opener_based_on_segment}
+
+{content_description_1_sentence}
+
+Check it out here: {content_link}
+
+{casual_closer_with_question}
+
+{signature}
+```
+
+**Segment Variations**:
+
+**RE Investors**:
+```
+Subject: This flip strategy is printing money 💰
+
+Hey {first_name},
+
+Just dropped a breakdown of a deal that turned $40K into $120K in 90 days.
+
+The exit strategy on this one was different - you'll want to see how we structured it.
+
+Watch it here: {link}
+
+What markets are you focused on right now?
+```
+
+**Bird Doggers**:
+```
+Subject: Found this deal in 10 minutes flat
+
+Hey {first_name},
+
+Sharing my exact process for finding off-market deals without spending a dime on marketing.
+
+This one technique alone has brought in 6 deals this quarter.
+
+Check the breakdown: {link}
+
+You finding deals in {area} lately?
+```
+
+#### 3.2 Audience-to-Channel Routing Rules
+
+| Audience | Primary | Secondary | Tertiary | Notes |
+|----------|---------|-----------|----------|-------|
+| re_investors | Email | Instagram | SMS (hot) | High-value content focus |
+| house_buyers | SMS | Email | - | Quick, actionable tips |
+| bird_doggers | Email | Slack | - | Deal-finding content |
+| jv_partners | Email | LinkedIn | - | Professional tone |
+| coaching_students | Email | Instagram | - | Training + motivation |
+| wholesalers | Email | Instagram | - | Strategy content |
+| lenders | Email | LinkedIn | - | Market data focus |
+| sellers | SMS | Email | - | Property-specific |
+| general_leads | Email | Instagram | - | Intro/educational |
+
+#### 3.3 Video-Linked Email Sequences
+
+**Sequence Structure** (per content piece):
+
+**Day 0**: Initial teaser email
+- Subject: Content-specific hook
+- Body: Teaser template
+- CTA: Watch video
+
+**Day 3**: Follow-up (if no open)
+- Subject: "Missed this? {hook}"
+- Body: "Quick reminder - {description}. Link: {url}"
+
+**Day 3**: Follow-up (if opened, no click)
+- Subject: "Worth 2 minutes: {hook}"
+- Body: Different angle on same content
+
+**Day 7**: Related content (if engaged)
+- Subject: "Since you liked {previous}..."
+- Body: Related content teaser
+
+### P1 Deliverables
+
+#### 3.4 Instagram Posting Automation
+[ASSUMPTION: Client has Instagram Business API access via approved app]
+
+**Posting Logic**:
+1. Content marked for Instagram (based on routing rules)
+2. Generate post caption from hooks
+3. Select best clip or thumbnail
+4. Schedule post via API
+5. Store post ID for cross-promotion
+
+**Caption Template**:
+```
+{hook_text}
+
+👇 Full breakdown in bio link
+
+{relevant_hashtags}
+
+#realestateinvesting #investortips
+```
+
+**Cross-Promotion**: Email includes "📱 Watch on Instagram: {ig_post_link}"
+
+#### 3.5 Audience-Specific Campaign Flows
+Long-term nurture sequences per segment:
+
+**RE Investors Flow** (12 weeks):
+- Week 1-2: Market fundamentals
+- Week 3-4: Deal analysis techniques
+- Week 5-6: Financing strategies
+- Week 7-8: Case studies
+- Week 9-10: Advanced strategies
+- Week 11-12: Partnership opportunities
+
+**Coaching Students Flow** (8 weeks):
+- Week 1-2: Getting started
+- Week 3-4: First deal focus
+- Week 5-6: Scaling up
+- Week 7-8: Community success stories
+
+#### 3.6 Deliverability Optimization
+
+**Warm-up Schedule** (new domain/sender):
+- Week 1: 50 emails/day
+- Week 2: 100 emails/day
+- Week 3: 250 emails/day
+- Week 4+: 500 emails/day max
+
+**List Hygiene**:
+- Remove hard bounces immediately
+- Suppress soft bounces after 3 attempts
+- Re-engagement campaign for 90-day inactive
+- Remove after failed re-engagement
+
+**Technical Requirements**:
+- SPF record configured
+- DKIM signing enabled
+- DMARC policy set
+- Dedicated sending IP (if volume warrants)
+- Consistent "From" name and address
+
+### P2 Deliverables
+
+#### 3.7 Cross-Promotion Triggers
+
+| Trigger | Action |
+|---------|--------|
+| Email opened | Track, no immediate action |
+| Email clicked → video | Track watch time if possible |
+| Email opened, no click (48h) | Send "Check it on Instagram" nudge |
+| Instagram post live | Update email with IG link |
+| High engagement on IG | Boost email send priority for related content |
+
+---
+
+## SYSTEM 4: GHL Orchestration & Prompt Architecture
+
+### Purpose
+Operational foundation housing workflows, prompt library, testing protocols, and documentation for white-label readiness.
+
+### P0 Deliverables
+
+#### 4.1 Prompt Library
+Central repository of all AI system instructions:
+
+| Prompt ID | System | Purpose | Location |
+|-----------|--------|---------|----------|
+| setter_update_base | 1 | Base conversational AI prompt | Supabase: prompts |
+| setter_hot_lead | 1 | Hot lead variation | Supabase: prompts |
+| setter_dormant | 1 | Re-engagement variation | Supabase: prompts |
+| note_parser | 1 | Call note extraction | Supabase: prompts |
+| content_agent | 2 | Hook/clip extraction | Supabase: prompts |
+| teaser_generator | 3 | Email teaser creation | Supabase: prompts |
+| caption_generator | 3 | Instagram caption creation | Supabase: prompts |
+| response_classifier | 1 | Reply intent detection | Supabase: prompts |
+
+**Prompt Versioning**: Store version number, created_at, active status. Only one active version per prompt_id.
+
+#### 4.2 GHL Audit Report
+[TO BE COMPLETED WITH CLIENT ACCESS]
+
+**Audit Checklist**:
+- [ ] Current contact count and segments
+- [ ] Existing workflows (list and purpose)
+- [ ] Active campaigns
+- [ ] Pipeline stages
+- [ ] Custom fields in use
+- [ ] Integration connections
+- [ ] Sending domains configured
+- [ ] Deliverability status
+- [ ] API access/keys
+
+**Output**: Audit document with recommendations for cleanup/optimization before implementation.
+
+#### 4.3 Cross-System Data Model
+
+**Entity Relationship**:
+```
+┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+│  contacts   │       │  contents   │       │ distributions│
+├─────────────┤       ├─────────────┤       ├─────────────┤
+│ id (PK)     │       │ id (PK)     │       │ id (PK)     │
+│ ghl_id (FK) │       │ source_url  │       │ content_id  │
+│ segment     │       │ title       │       │ contact_id  │
+│ status      │       │ transcript  │       │ channel     │
+│ last_contact│       │ hooks (JSON)│       │ sent_at     │
+│ score       │       │ clips (JSON)│       │ opened      │
+│ tags[]      │       │ audiences[] │       │ clicked     │
+│ notes[]     │       │ score       │       │ response    │
+└─────────────┘       │ created_at  │       └─────────────┘
+                      │ processed   │
+                      └─────────────┘
+                             │
+                             │
+                      ┌─────────────┐
+                      │   hooks     │
+                      ├─────────────┤
+                      │ id (PK)     │
+                      │ content_id  │
+                      │ text        │
+                      │ timestamp   │
+                      │ hook_type   │
+                      │ used_count  │
+                      └─────────────┘
+```
+
+#### 4.4 Custom Workflow Builds (n8n)
+
+**Workflow Inventory**:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| slack-intake | Slack webhook | Receive tagged content |
+| content-processor | slack-intake | AI extraction pipeline |
+| note-parser | GHL webhook | Parse call notes |
+| segmentation-engine | note-parser | Update contact segments |
+| setter-scheduler | Cron (daily) | Queue daily touchpoints |
+| setter-sender | setter-scheduler | Generate & send messages |
+| distribution-router | content-processor | Route to channels |
+| email-sender | distribution-router | Send via GHL |
+| instagram-poster | distribution-router | Post to IG |
+| response-handler | GHL webhook | Process replies |
+| analytics-logger | All workflows | Log to Supabase |
+
+### P1 Deliverables
+
+#### 4.5 Testing & QA Protocols
+
+**Unit Tests**:
+- Prompt output validation (10 sample inputs each)
+- Segmentation rule accuracy
+- Routing rule correctness
+
+**Integration Tests**:
+- Slack → n8n → Supabase flow
+- n8n → GHL API calls
+- End-to-end content processing
+
+**QA Checklist**:
+- [ ] Prompts return valid JSON
+- [ ] Segments update correctly
+- [ ] Emails render properly
+- [ ] Links are trackable
+- [ ] Opt-out honored
+- [ ] No duplicate sends
+- [ ] Error handling works
+
+**Test Data**: Create 20 sample contacts, 5 sample contents for testing without affecting production.
+
+#### 4.6 Documentation & Handoff
+
+**Documentation Package**:
+1. Architecture overview (this PRD)
+2. n8n workflow documentation
+3. Supabase schema documentation
+4. GHL configuration guide
+5. Prompt library with examples
+6. SOP for Ashley (tagging)
+7. SOP for daily operations
+8. Troubleshooting guide
+9. API reference (all integrations)
+
+**Handoff Includes**:
+- All code/workflows exported
+- Database with seed data
+- Access credentials (securely transferred)
+- 1-hour walkthrough session
+- 30-day support period
+
+### P2 Deliverables
+
+#### 4.7 White-Label Preparation
+
+**Templating**:
+- Replace hardcoded brand names with variables
+- Configurable color schemes in dashboard
+- Swappable logo assets
+- Customizable email templates
+
+**Partner Deployment Guide**:
+1. Fork Supabase project
+2. Import n8n workflows
+3. Configure GHL sub-account
+4. Update environment variables
+5. Customize branding
+6. Test all flows
+7. Go live
+
+---
+
+## Technical Requirements
+
+### Supabase Schema
+
+```sql
+-- Audience segments reference
+CREATE TABLE segments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  routing_rules JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Prompts library
+CREATE TABLE prompts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prompt_id TEXT NOT NULL,
+  version INT DEFAULT 1,
+  system TEXT NOT NULL,
+  purpose TEXT,
+  content TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(prompt_id, version)
+);
+
+-- Content library
+CREATE TABLE contents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_url TEXT,
+  source_type TEXT, -- 'call', 'workshop', 'video'
+  title TEXT,
+  description TEXT,
+  transcript TEXT,
+  transcript_structured JSONB,
+  hooks JSONB,
+  clips JSONB,
+  audiences TEXT[],
+  metadata JSONB,
+  score INT,
+  priority TEXT,
+  status TEXT DEFAULT 'pending', -- pending, processing, ready, distributed
+  slack_ts TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  processed_at TIMESTAMPTZ
+);
+
+-- Extracted hooks (for reuse tracking)
+CREATE TABLE hooks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content_id UUID REFERENCES contents(id),
+  text TEXT NOT NULL,
+  timestamp TEXT,
+  hook_type TEXT,
+  used_count INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Distribution tracking
+CREATE TABLE distributions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content_id UUID REFERENCES contents(id),
+  ghl_contact_id TEXT,
+  channel TEXT NOT NULL, -- email, sms, instagram
+  message_type TEXT, -- teaser, followup, reminder
+  message_content TEXT,
+  external_id TEXT, -- GHL message ID, IG post ID
+  sent_at TIMESTAMPTZ,
+  opened_at TIMESTAMPTZ,
+  clicked_at TIMESTAMPTZ,
+  response TEXT,
+  response_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Contact sync (mirror of GHL for analytics)
+CREATE TABLE contacts_sync (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ghl_id TEXT UNIQUE NOT NULL,
+  email TEXT,
+  phone TEXT,
+  segment TEXT,
+  status TEXT,
+  score INT,
+  tags TEXT[],
+  last_synced_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Analytics events
+CREATE TABLE analytics_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL,
+  event_data JSONB,
+  workflow TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Indexes
+CREATE INDEX idx_contents_status ON contents(status);
+CREATE INDEX idx_contents_audiences ON contents USING GIN(audiences);
+CREATE INDEX idx_distributions_content ON distributions(content_id);
+CREATE INDEX idx_distributions_channel ON distributions(channel);
+CREATE INDEX idx_contacts_segment ON contacts_sync(segment);
+CREATE INDEX idx_analytics_type ON analytics_events(event_type);
+```
+
+### n8n Workflow Requirements
+
+**Environment Variables**:
+- SUPABASE_URL
+- SUPABASE_KEY
+- GHL_API_KEY
+- GHL_LOCATION_ID
+- SLACK_BOT_TOKEN
+- SLACK_SIGNING_SECRET
+- OPENAI_API_KEY (or ANTHROPIC_API_KEY)
+- CREATIFY_API_KEY (if available)
+- INSTAGRAM_ACCESS_TOKEN (if available)
+
+**Webhook Endpoints Needed**:
+- POST /webhook/slack-reaction
+- POST /webhook/ghl-contact-update
+- POST /webhook/ghl-message-reply
+- POST /webhook/creatify-complete
+
+### GHL Configuration
+
+**Required Custom Fields**:
+- investor_status (dropdown)
+- segment (dropdown)
+- score (number)
+- last_ai_touchpoint (date)
+- content_preferences (multi-select)
+
+**Required Tags**:
+- One tag per segment (9 tags)
+- Status tags (hot, warm, cold, dormant)
+- Source tags (slack_content, direct, referral)
+
+**Workflows to Create**:
+- Inbound lead → Initial segmentation
+- Status change → Notify n8n
+- Reply received → Webhook to n8n
+- Appointment booked → Update status
+
+---
+
+## Assumptions & Open Questions
+
+### Assumptions (Need Verification)
+1. [ASSUME] Call recordings come from GHL phone or Zoom - need to confirm source
+2. [ASSUME] Client has or can get Instagram Business API access
+3. [ASSUME] Creatify subscription includes API access for clip generation
+4. [ASSUME] Ashley (or team member) available for manual tagging in Slack
+5. [ASSUME] GHL account is on Agency/Pro plan with API access
+6. [ASSUME] Volume is <1000 contacts, <50 content pieces/month initially
+
+### Open Questions for Austin
+1. What is the call recording source? (GHL phone, Zoom, other dialer?)
+2. Where do workshop recordings live? (YouTube, Vimeo, local storage?)
+3. Do you have Instagram Business API access with approved app?
+4. What Creatify subscription level? Does API support automation?
+5. Expected volume: contacts/month, calls/week, workshops/month?
+6. Is GHL account new or existing? If existing, current workflow count?
+7. Who is "Ashley" - dedicated team member or role to be filled?
+8. Budget for external APIs (transcription, AI tokens, etc.)?
+9. Timeline expectations for Phase 1?
+10. White-label for Prop.AI - is this Phase 1 or future?
+
+---
+
+## Project Phases
+
+### Phase 1: Foundation (40-60 hours)
+- Supabase schema setup
+- n8n environment configuration
+- GHL audit and cleanup
+- Core Slack→n8n→Supabase flow
+- Basic content processing workflow
+- Prompt library (v1)
+
+### Phase 2: AI Processing (30-40 hours)
+- Note parsing workflow
+- Content extraction agent
+- Hook/clip extraction
+- Segmentation engine
+- Contact sync
+
+### Phase 3: Distribution (20-30 hours)
+- Email teaser generation
+- Audience routing logic
+- GHL workflow integration
+- Sequence triggers
+
+### Phase 4: Social & Cross-Promo (15-25 hours)
+- Instagram automation (if API allows)
+- Cross-promotion logic
+- Analytics dashboard (basic)
+
+### Phase 5: Polish & Handoff (15-20 hours)
+- Testing & QA
+- Documentation
+- Training
+- White-label prep (if needed)
+
+**Total Estimate: 120-175 hours**
+
+---
+
+## Success Metrics
+
+### System Health
+- Slack→Processing time <5 minutes
+- AI extraction accuracy >90%
+- Email deliverability >95%
+- Zero duplicate sends
+
+### Business Impact
+- Response rate improvement (baseline TBD)
+- Content output increase (baseline TBD)
+- Time saved on manual processes
+- Segment engagement rates
+
+---
+
+## Appendix
+
+### A. Sample n8n Workflow: Slack Intake
+[To be built in implementation]
+
+### B. Sample GHL Workflow: Contact Segmentation
+[To be built in implementation]
+
+### C. Full Prompt Library
+[To be stored in Supabase during implementation]
+
+### D. Email Template Gallery
+[To be created during Phase 3]
+
+---
+
+*Document Version: 1.0*
+*Created: December 2024*
+*Author: Carlos @ Vixi Agency*
+*Client: Austin / CQ Marketing*

@@ -1,0 +1,449 @@
+{
+  "name": "S2-03 Transcript Processor",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_transcript",
+              "leftValue": "={{ $json.transcript_raw }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has_transcript",
+      "name": "Has Raw Transcript?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if source_url is a video/audio that needs transcription\nconst content = $input.first().json;\nconst url = content.source_url || '';\n\nconst audioExtensions = ['.mp3', '.wav', '.m4a', '.ogg', '.webm'];\nconst videoExtensions = ['.mp4', '.mov', '.avi', '.mkv'];\nconst needsTranscription = [...audioExtensions, ...videoExtensions].some(ext => url.toLowerCase().includes(ext));\n\n// Check for known video platforms\nconst isYouTube = url.includes('youtube.com') || url.includes('youtu.be');\nconst isVimeo = url.includes('vimeo.com');\nconst isLoom = url.includes('loom.com');\n\nreturn {\n  json: {\n    content_id: content.id,\n    source_url: url,\n    needs_transcription: needsTranscription || isYouTube || isVimeo || isLoom,\n    platform: isYouTube ? 'youtube' : isVimeo ? 'vimeo' : isLoom ? 'loom' : 'direct',\n    description: content.description\n  }\n};"
+      },
+      "id": "check_media_type",
+      "name": "Check Media Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "needs_transcription",
+              "leftValue": "={{ $json.needs_transcription }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "needs_transcription",
+      "name": "Needs Transcription?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Placeholder for transcription API integration\n// Options: OpenAI Whisper, AssemblyAI, Deepgram, etc.\n\nconst input = $input.first().json;\n\n// In production, you would call the transcription API here\n// Example with OpenAI Whisper:\n// 1. Download audio/video\n// 2. POST to https://api.openai.com/v1/audio/transcriptions\n// 3. Return transcript\n\n// For now, return placeholder\nreturn {\n  json: {\n    content_id: input.content_id,\n    transcript_raw: `[Transcription pending for: ${input.source_url}]\\n\\nThis content requires manual transcription or API integration.\\n\\nDescription: ${input.description || 'No description provided'}`,\n    transcription_status: 'pending_manual',\n    source_url: input.source_url,\n    platform: input.platform\n  }\n};\n\n// TODO: Implement actual transcription\n// Recommended: AssemblyAI for best accuracy\n// API: https://www.assemblyai.com/docs"
+      },
+      "id": "transcribe_audio",
+      "name": "Transcribe Audio/Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use description as transcript fallback\nconst input = $input.first().json;\n\nreturn {\n  json: {\n    content_id: input.content_id,\n    transcript_raw: input.description || 'No transcript available',\n    transcription_status: 'from_description',\n    source_url: input.source_url\n  }\n};"
+      },
+      "id": "use_description",
+      "name": "Use Description as Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_transcript",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/prompts?prompt_id=eq.transcript_cleaner&is_active=eq.true&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_cleaner_prompt",
+      "name": "Get Cleaner Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_prompt",
+              "leftValue": "={{ $json[0]?.content }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "long_transcript",
+              "leftValue": "={{ $node['Merge'].json.transcript_raw?.length }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "should_clean",
+      "name": "Should Clean?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($node['Get Cleaner Prompt'].json[0]?.content + '\\n\\nRaw transcript:\\n' + $node['Merge'].json.transcript_raw?.substring(0, 15000)) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "claude_clean",
+      "name": "Claude: Clean Transcript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst mergeData = $node['Merge'].first().json;\n\nconst cleanedTranscript = response.content?.[0]?.text || mergeData.transcript_raw;\n\nreturn {\n  json: {\n    content_id: mergeData.content_id,\n    transcript_raw: mergeData.transcript_raw,\n    transcript_cleaned: cleanedTranscript,\n    was_cleaned: true\n  }\n};"
+      },
+      "id": "use_cleaned",
+      "name": "Use Cleaned Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mergeData = $node['Merge'].first().json;\n\nreturn {\n  json: {\n    content_id: mergeData.content_id,\n    transcript_raw: mergeData.transcript_raw,\n    transcript_cleaned: mergeData.transcript_raw,\n    was_cleaned: false\n  }\n};"
+      },
+      "id": "skip_cleaning",
+      "name": "Skip Cleaning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_final",
+      "name": "Merge Final",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/contents?id=eq.{{ $json.content_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"transcript_raw\": {{ JSON.stringify($json.transcript_cleaned) }}\n}",
+        "options": {}
+      },
+      "id": "update_content",
+      "name": "Update Content with Transcript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass existing transcript through\nconst content = $input.first().json;\n\nreturn {\n  json: {\n    content_id: content.id,\n    transcript_raw: content.transcript_raw,\n    transcript_cleaned: content.transcript_raw,\n    was_cleaned: false,\n    status: 'already_has_transcript'\n  }\n};"
+      },
+      "id": "pass_through",
+      "name": "Pass Through Existing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 200]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Has Raw Transcript?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Raw Transcript?": {
+      "main": [
+        [
+          {
+            "node": "Pass Through Existing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Media Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Media Type": {
+      "main": [
+        [
+          {
+            "node": "Needs Transcription?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Transcription?": {
+      "main": [
+        [
+          {
+            "node": "Transcribe Audio/Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Use Description as Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe Audio/Video": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Description as Transcript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Get Cleaner Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Cleaner Prompt": {
+      "main": [
+        [
+          {
+            "node": "Should Clean?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Clean?": {
+      "main": [
+        [
+          {
+            "node": "Claude: Clean Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Cleaning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Clean Transcript": {
+      "main": [
+        [
+          {
+            "node": "Use Cleaned Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Cleaned Transcript": {
+      "main": [
+        [
+          {
+            "node": "Merge Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Cleaning": {
+      "main": [
+        [
+          {
+            "node": "Merge Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Final": {
+      "main": [
+        [
+          {
+            "node": "Update Content with Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["Austin CG", "System 2", "Content Pipeline"]
+}

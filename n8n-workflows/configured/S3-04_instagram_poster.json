@@ -1,0 +1,424 @@
+{
+  "name": "S3-04 Instagram Poster",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.instagram_caption&is_active=eq.true&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_prompt",
+      "name": "Get Caption Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "=YOUR_ANTHROPIC_API_KEY_HERE"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\n        ($node['Get Caption Prompt'].json[0]?.content || 'Generate an Instagram caption with hashtags for this content:') + \n        '\\n\\nHook text: ' + ($('Start').first().json.best_hook || 'Check out this content') +\n        '\\nContent type: ' + ($('Start').first().json.content_type || 'educational') +\n        '\\nTarget audience: ' + $('Start').first().json.segment_name\n      ) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude_caption",
+      "name": "Claude: Generate Caption",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst startData = $('Start').first().json;\n\nconst caption = response.content?.[0]?.text || `${startData.best_hook}\\n\\n👇 Link in bio\\n\\n#realestateinvesting #investortips`;\n\nreturn {\n  json: {\n    content_id: startData.content_id,\n    caption: caption,\n    media_url: startData.source_url,\n    segment: startData.segment_slug\n  }\n};"
+      },
+      "id": "prepare_post",
+      "name": "Prepare Post Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_token",
+              "leftValue": "={{ $vars.INSTAGRAM_ACCESS_TOKEN }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_ig_configured",
+      "name": "Instagram Configured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v18.0/{{ $vars.INSTAGRAM_BUSINESS_ID }}/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.INSTAGRAM_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_url",
+              "value": "={{ $json.media_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.caption }}"
+            },
+            {
+              "name": "media_type",
+              "value": "REELS"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "create_ig_media",
+      "name": "Create IG Media Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wait for media to be ready\n// Instagram needs time to process video\nawait new Promise(resolve => setTimeout(resolve, 30000));\n\nreturn $input.all();"
+      },
+      "id": "wait_processing",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v18.0/{{ $vars.INSTAGRAM_BUSINESS_ID }}/media_publish",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.INSTAGRAM_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $node['Create IG Media Container'].json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "publish_ig",
+      "name": "Publish to Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content_id\": \"{{ $node['Prepare Post Data'].json.content_id }}\",\n  \"channel\": \"instagram\",\n  \"message_type\": \"social_post\",\n  \"message_content\": {{ JSON.stringify($node['Prepare Post Data'].json.caption) }},\n  \"media_url\": \"{{ $node['Prepare Post Data'].json.media_url }}\",\n  \"external_id\": \"{{ $json.id }}\",\n  \"external_url\": \"https://instagram.com/p/{{ $json.id }}\",\n  \"sent_at\": \"{{ new Date().toISOString() }}\",\n  \"status\": \"sent\"\n}",
+        "options": {}
+      },
+      "id": "create_distribution",
+      "name": "Create Distribution Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Instagram not configured - create placeholder distribution\nconst postData = $node['Prepare Post Data'].first().json;\n\nreturn {\n  json: {\n    status: 'instagram_not_configured',\n    message: 'Instagram API not configured. Manual posting required.',\n    caption: postData.caption,\n    media_url: postData.media_url,\n    content_id: postData.content_id\n  }\n};"
+      },
+      "id": "ig_not_configured",
+      "name": "IG Not Configured",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content_id\": \"{{ $json.content_id }}\",\n  \"channel\": \"instagram\",\n  \"message_type\": \"social_post\",\n  \"message_content\": {{ JSON.stringify($json.caption) }},\n  \"media_url\": \"{{ $json.media_url }}\",\n  \"status\": \"pending\",\n  \"error_message\": \"Manual posting required - IG API not configured\"\n}",
+        "options": {}
+      },
+      "id": "create_pending_distribution",
+      "name": "Create Pending Distribution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "completed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "return_result",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2220, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Get Caption Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Caption Prompt": {
+      "main": [
+        [
+          {
+            "node": "Claude: Generate Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Generate Caption": {
+      "main": [
+        [
+          {
+            "node": "Prepare Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Post Data": {
+      "main": [
+        [
+          {
+            "node": "Instagram Configured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram Configured?": {
+      "main": [
+        [
+          {
+            "node": "Create IG Media Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IG Not Configured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create IG Media Container": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Publish to Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to Instagram": {
+      "main": [
+        [
+          {
+            "node": "Create Distribution Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Distribution Record": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG Not Configured": {
+      "main": [
+        [
+          {
+            "node": "Create Pending Distribution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Pending Distribution": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["Austin CG", "System 3", "Distribution"]
+}

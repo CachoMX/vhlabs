@@ -1,0 +1,96 @@
+{
+  "name": "S4-02 Analytics Logger",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/analytics_events",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event_type\": \"{{ $json.event_type }}\",\n  \"event_category\": \"{{ $json.event_category || null }}\",\n  \"workflow_name\": \"{{ $json.workflow_name || null }}\",\n  \"content_id\": {{ $json.content_id ? '\"' + $json.content_id + '\"' : 'null' }},\n  \"contact_id\": {{ $json.contact_id ? '\"' + $json.contact_id + '\"' : 'null' }},\n  \"distribution_id\": {{ $json.distribution_id ? '\"' + $json.distribution_id + '\"' : 'null' }},\n  \"event_data\": {{ JSON.stringify($json.event_data || {}) }},\n  \"duration_ms\": {{ $json.duration_ms || 'null' }},\n  \"success\": {{ $json.success !== false }}\n}",
+        "options": {}
+      },
+      "id": "insert_event",
+      "name": "Insert Analytics Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "logged",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "return_success",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Insert Analytics Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Analytics Event": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["Austin CG", "Utility"]
+}

@@ -1,0 +1,373 @@
+{
+  "name": "S3-03 Email Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "cron",
+      "name": "Every 10 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?status=eq.queued&channel=eq.email&order=created_at.asc&limit=50",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_queued",
+      "name": "Get Queued Emails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_emails",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has_emails",
+      "name": "Has Emails to Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "batch_emails",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://rest.gohighlevel.com/v1/contacts/{{ $json.ghl_contact_id }}/campaigns/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer YOUR_GHL_API_KEY_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"emailTemplateId\": \"custom\",\n  \"subject\": {{ JSON.stringify($json.subject) }},\n  \"html\": {{ JSON.stringify('<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">' + $json.message_content.replace(/\\n/g, '<br>') + '</div>') }},\n  \"from\": \"{{ $vars.GHL_FROM_EMAIL || 'noreply@example.com' }}\",\n  \"fromName\": \"{{ $vars.GHL_FROM_NAME || 'Your Team' }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "send_via_ghl",
+      "name": "Send via GHL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst distribution = $('Process in Batches').first().json;\n\n// Check if send was successful\nconst success = response.id || response.success || !response.error;\n\nreturn {\n  json: {\n    distribution_id: distribution.id,\n    ghl_message_id: response.id || null,\n    success: success,\n    error: response.error || response.message || null\n  }\n};"
+      },
+      "id": "check_result",
+      "name": "Check Send Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_success",
+      "name": "Send Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?id=eq.{{ $json.distribution_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"sent\",\n  \"sent_at\": \"{{ new Date().toISOString() }}\",\n  \"external_id\": {{ $json.ghl_message_id ? '\"' + $json.ghl_message_id + '\"' : 'null' }}\n}",
+        "options": {}
+      },
+      "id": "update_sent",
+      "name": "Update Status: Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?id=eq.{{ $json.distribution_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"failed\",\n  \"error_message\": {{ JSON.stringify($json.error || 'Unknown error') }}\n}",
+        "options": {}
+      },
+      "id": "update_failed",
+      "name": "Update Status: Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add delay between batches to avoid rate limits\nawait new Promise(resolve => setTimeout(resolve, 2000));\n\nreturn $input.all();"
+      },
+      "id": "rate_limit_delay",
+      "name": "Rate Limit Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "id": "log_analytics",
+      "name": "Log Analytics",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [2220, 200],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Every 10 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Queued Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Queued Emails": {
+      "main": [
+        [
+          {
+            "node": "Has Emails to Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Emails to Send?": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [
+          {
+            "node": "Send via GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send via GHL": {
+      "main": [
+        [
+          {
+            "node": "Check Send Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Send Result": {
+      "main": [
+        [
+          {
+            "node": "Send Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Success?": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status: Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Sent": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Failed": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Delay": {
+      "main": [
+        [
+          {
+            "node": "Log Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["Austin CG", "System 3", "Distribution"]
+}

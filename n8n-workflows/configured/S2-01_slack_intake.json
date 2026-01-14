@@ -1,0 +1,334 @@
+{
+  "name": "S2-01 Slack Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "slack-reaction",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Slack Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "slack-reaction"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle Slack URL verification challenge\nconst body = $input.first().json.body;\n\n// URL Verification (Slack sends this when setting up)\nif (body.type === 'url_verification') {\n  return {\n    json: {\n      challenge: body.challenge,\n      isChallenge: true\n    }\n  };\n}\n\n// Only process reaction_added events\nif (body.event?.type !== 'reaction_added') {\n  return {\n    json: {\n      skip: true,\n      reason: 'Not a reaction_added event'\n    }\n  };\n}\n\n// Extract event data\nconst event = body.event;\n\nreturn {\n  json: {\n    isChallenge: false,\n    skip: false,\n    reaction: event.reaction,\n    user: event.user,\n    channel: event.item.channel,\n    message_ts: event.item.ts,\n    event_ts: event.event_ts\n  }\n};"
+      },
+      "id": "parse_event",
+      "name": "Parse Slack Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is_challenge",
+              "leftValue": "={{ $json.isChallenge }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_challenge",
+      "name": "Is Challenge?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ challenge: $json.challenge }) }}",
+        "options": {}
+      },
+      "id": "respond_challenge",
+      "name": "Respond to Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "should_skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_skip",
+      "name": "Should Skip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true }",
+        "options": {}
+      },
+      "id": "respond_skip",
+      "name": "Respond OK (Skip)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/conversations.history",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"{{ $json.channel }}\",\n  \"latest\": \"{{ $json.message_ts }}\",\n  \"inclusive\": true,\n  \"limit\": 1\n}",
+        "options": {}
+      },
+      "id": "get_message",
+      "name": "Get Original Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst reaction = $('Parse Slack Event').first().json.reaction;\n\n// Reaction to segment mapping\nconst reactionMap = {\n  'house': 're_investors',\n  'house_with_garden': 'house_buyers', \n  'dog': 'bird_doggers',\n  'handshake': 'jv_partners',\n  'books': 'coaching_students',\n  'moneybag': 'wholesalers',\n  'bank': 'lenders',\n  'memo': 'sellers',\n  'question': 'general_leads',\n  // Priority/featured flags\n  'fire': '_priority',\n  'star': '_featured'\n};\n\nconst mapped = reactionMap[reaction] || 'general_leads';\nconst isPriority = reaction === 'fire';\nconst isFeatured = reaction === 'star';\nconst segment = mapped.startsWith('_') ? 'general_leads' : mapped;\n\n// Extract URL from message if present\nconst messageText = input.messages?.[0]?.text || '';\nconst urlMatch = messageText.match(/<(https?:\\/\\/[^>|]+)/)?.[1] || messageText;\n\nreturn {\n  json: {\n    segment: segment,\n    is_priority: isPriority,\n    is_featured: isFeatured,\n    reaction: reaction,\n    source_url: urlMatch,\n    message_text: messageText,\n    channel: $('Parse Slack Event').first().json.channel,\n    message_ts: $('Parse Slack Event').first().json.message_ts,\n    tagged_by: $('Parse Slack Event').first().json.user\n  }\n};"
+      },
+      "id": "map_reaction",
+      "name": "Map Reaction to Segment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"source_url\": \"{{ $json.source_url }}\",\n  \"source_type\": \"call\",\n  \"description\": \"{{ $json.message_text.substring(0, 500) }}\",\n  \"slack_channel_id\": \"{{ $json.channel }}\",\n  \"slack_message_ts\": \"{{ $json.message_ts }}\",\n  \"slack_reactions\": [{\n    \"reaction\": \"{{ $json.reaction }}\",\n    \"user\": \"{{ $json.tagged_by }}\",\n    \"timestamp\": \"{{ new Date().toISOString() }}\"\n  }],\n  \"audiences\": [\"{{ $json.segment }}\"],\n  \"is_featured\": {{ $json.is_featured }},\n  \"priority\": \"{{ $json.is_priority ? 'high' : 'medium' }}\",\n  \"status\": \"pending\"\n}",
+        "options": {}
+      },
+      "id": "create_content",
+      "name": "Create Content Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"content_id\": \"{{ $json[0]?.id }}\" }",
+        "options": {}
+      },
+      "id": "respond_success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1780, 500]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "id": "trigger_processor",
+      "name": "Trigger Content Processor",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [2000, 500],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "id": "log_event",
+      "name": "Log Analytics Event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [2000, 650],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Slack Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Slack Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Slack Event": {
+      "main": [
+        [
+          {
+            "node": "Is Challenge?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Challenge?": {
+      "main": [
+        [
+          {
+            "node": "Respond to Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Should Skip?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Skip?": {
+      "main": [
+        [
+          {
+            "node": "Respond OK (Skip)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Original Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Original Message": {
+      "main": [
+        [
+          {
+            "node": "Map Reaction to Segment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Reaction to Segment": {
+      "main": [
+        [
+          {
+            "node": "Create Content Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Content Record": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Success": {
+      "main": [
+        [
+          {
+            "node": "Trigger Content Processor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Analytics Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["Austin CG", "System 2", "Content Pipeline"]
+}

@@ -1,0 +1,497 @@
+{
+  "name": "S2-02 Content Processor",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"processing\",\n  \"processing_started_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "update_status_processing",
+      "name": "Update Status: Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_content",
+      "name": "Get Content Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_transcript",
+              "leftValue": "={{ $json[0]?.transcript_raw }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has_transcript",
+      "name": "Has Transcript?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Placeholder for transcription API call\n// In production, call Whisper API, AssemblyAI, or similar\n\nconst content = $input.first().json[0];\nconst sourceUrl = content.source_url;\n\n// For now, return a placeholder\n// TODO: Implement actual transcription\nreturn {\n  json: {\n    content_id: content.id,\n    transcript: content.description || 'Transcript not available - manual input required',\n    needs_manual_transcript: true\n  }\n};"
+      },
+      "id": "transcribe",
+      "name": "Transcribe Audio/Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.first().json[0];\n\nreturn {\n  json: {\n    content_id: content.id,\n    transcript: content.transcript_raw,\n    needs_manual_transcript: false\n  }\n};"
+      },
+      "id": "use_existing",
+      "name": "Use Existing Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.content_agent&is_active=eq.true&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get_prompt",
+      "name": "Get Content Agent Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "=YOUR_ANTHROPIC_API_KEY_HERE"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($node['Get Content Agent Prompt'].json[0]?.content + '\\n\\nTranscript:\\n' + $node['Merge'].json.transcript) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "claude_extraction",
+      "name": "Claude: Extract Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst contentId = $node['Merge'].first().json.content_id;\n\ntry {\n  const text = response.content[0].text;\n  \n  // Extract JSON from response (handle markdown code blocks)\n  let jsonStr = text;\n  if (text.includes('```json')) {\n    jsonStr = text.split('```json')[1].split('```')[0];\n  } else if (text.includes('```')) {\n    jsonStr = text.split('```')[1].split('```')[0];\n  }\n  \n  const parsed = JSON.parse(jsonStr.trim());\n  \n  // Calculate content score\n  let score = 50;\n  score += Math.min((parsed.hooks?.length || 0) * 5, 25);\n  score += Math.min((parsed.clips?.length || 0) * 5, 15);\n  if (parsed.metadata?.content_type === 'case_study') score += 10;\n  \n  const priority = score > 80 ? 'high' : score > 50 ? 'medium' : 'low';\n  \n  return {\n    json: {\n      content_id: contentId,\n      hooks: parsed.hooks || [],\n      clips: parsed.clips || [],\n      transcript_structured: parsed.transcript || {},\n      metadata: parsed.metadata || {},\n      score: score,\n      priority: priority,\n      raw_response: text,\n      success: true\n    }\n  };\n} catch (error) {\n  return {\n    json: {\n      content_id: contentId,\n      success: false,\n      error: error.message,\n      raw_response: response.content?.[0]?.text\n    }\n  };\n}"
+      },
+      "id": "parse_response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_success",
+      "name": "Extraction Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"hooks\": {{ JSON.stringify($json.hooks) }},\n  \"clips\": {{ JSON.stringify($json.clips) }},\n  \"transcript_structured\": {{ JSON.stringify($json.transcript_structured) }},\n  \"ai_metadata\": {{ JSON.stringify($json.metadata) }},\n  \"score\": {{ $json.score }},\n  \"priority\": \"{{ $json.priority }}\",\n  \"status\": \"ready\",\n  \"processing_completed_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "update_content_success",
+      "name": "Update Content: Ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"pending\",\n  \"processing_error\": \"{{ $json.error }}\",\n  \"processing_completed_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "update_content_error",
+      "name": "Update Content: Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Insert hooks into hooks table\nconst hooks = $json.hooks || [];\nconst contentId = $json.content_id;\n\nreturn hooks.map((hook, index) => ({\n  json: {\n    content_id: contentId,\n    text: hook.text,\n    timestamp: hook.timestamp || null,\n    hook_type: hook.hook_type || 'insight'\n  }\n}));"
+      },
+      "id": "prepare_hooks",
+      "name": "Prepare Hooks for Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/hooks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content_id\": \"{{ $json.content_id }}\",\n  \"text\": {{ JSON.stringify($json.text) }},\n  \"timestamp\": {{ $json.timestamp ? '\"' + $json.timestamp + '\"' : 'null' }},\n  \"hook_type\": \"{{ $json.hook_type }}\"\n}",
+        "options": {}
+      },
+      "id": "insert_hooks",
+      "name": "Insert Hooks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 200]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Processing": {
+      "main": [
+        [
+          {
+            "node": "Get Content Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Content Record": {
+      "main": [
+        [
+          {
+            "node": "Has Transcript?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Transcript?": {
+      "main": [
+        [
+          {
+            "node": "Use Existing Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Transcribe Audio/Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe Audio/Video": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Existing Transcript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Get Content Agent Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Content Agent Prompt": {
+      "main": [
+        [
+          {
+            "node": "Claude: Extract Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Extract Content": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Extraction Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraction Success?": {
+      "main": [
+        [
+          {
+            "node": "Update Content: Ready",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Content: Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Content: Ready": {
+      "main": [
+        [
+          {
+            "node": "Prepare Hooks for Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Hooks for Insert": {
+      "main": [
+        [
+          {
+            "node": "Insert Hooks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["Austin CG", "System 2", "Content Pipeline"]
+}
