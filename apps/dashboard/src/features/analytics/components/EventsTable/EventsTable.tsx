@@ -1,22 +1,17 @@
 import { useState } from 'react';
-import { ColumnDef } from '@tanstack/react-table';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { DataTable } from '@/components/DataTable';
 import { Badge, EmptyState } from '@/components/ui';
 import { AnalyticsFilters } from '../AnalyticsFilters/AnalyticsFilters';
 import { useGetEvents } from '../../api/get-events';
 import type { AnalyticsFilters as AnalyticsFiltersType } from '../../types';
-import type { Database } from '@/types/database.types';
-
-type AnalyticsEvent = Database['public']['Tables']['analytics_events']['Row'];
 
 interface EventsTableProps {
   onEventClick?: (eventId: string) => void;
 }
 
-export function EventsTable({ onEventClick }: EventsTableProps) {
+export function EventsTable({ onEventClick: _onEventClick }: EventsTableProps) {
   const [filters, setFilters] = useState<AnalyticsFiltersType>({});
-  const [page, setPage] = useState(1);
+  const [page, _setPage] = useState(1);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const pageSize = 10;
 
@@ -34,78 +29,6 @@ export function EventsTable({ onEventClick }: EventsTableProps) {
     });
   };
 
-  const columns: ColumnDef<AnalyticsEvent>[] = [
-    {
-      id: 'expander',
-      header: '',
-      cell: ({ row }) => (
-        <button
-          onClick={() => toggleRowExpansion(row.original.id)}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          {expandedRows.has(row.original.id) ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </button>
-      ),
-    },
-    {
-      accessorKey: 'event_type',
-      header: 'Event Type',
-      cell: ({ row }) => (
-        <span className="font-medium text-gray-900">
-          {row.original.event_type}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'event_category',
-      header: 'Category',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-700">
-          {row.original.event_category || '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'workflow_name',
-      header: 'Workflow',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-700">
-          {row.original.workflow_name || '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'success',
-      header: 'Status',
-      cell: ({ row }) => (
-        <Badge variant={row.original.success ? 'success' : 'error'} size="sm">
-          {row.original.success ? 'Success' : 'Failed'}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: 'duration_ms',
-      header: 'Duration',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-700">
-          {row.original.duration_ms !== null ? `${row.original.duration_ms}ms` : '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'created_at',
-      header: 'Created At',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-500">
-          {new Date(row.original.created_at).toLocaleString()}
-        </span>
-      ),
-    },
-  ];
 
   if (error) {
     return (

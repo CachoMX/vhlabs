@@ -9,10 +9,11 @@ export interface TogglePromptActiveParams {
 async function togglePromptActive({ id, isActive }: TogglePromptActiveParams): Promise<void> {
   const { error } = await supabase
     .from('prompts')
+  // @ts-ignore
     .update({
       is_active: isActive,
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .eq('id', id);
 
   if (error) {

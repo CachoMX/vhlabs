@@ -22,7 +22,7 @@ async function fetchSystemHealth(): Promise<SystemHealthData> {
     throw new Error(`Failed to fetch system health: ${error.message}`);
   }
 
-  const errorLogs = data || [];
+  const errorLogs = (data || []) as WorkflowLog[];
   const errorCount = errorLogs.length;
   const latestErrorTime = errorLogs.length > 0 ? errorLogs[0].created_at : null;
 

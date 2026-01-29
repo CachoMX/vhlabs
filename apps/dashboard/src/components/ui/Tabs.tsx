@@ -23,7 +23,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, onChange, className }) =>
     onChange?.(tabId);
   };
 
-  const activeTabContent = tabs.find((tab) => tab.id === activeTab)?.content;
+  // const _activeTabContent = tabs.find((tab) => tab.id === activeTab)?.content;
 
   return (
     <div className={cn('w-full', className)}>

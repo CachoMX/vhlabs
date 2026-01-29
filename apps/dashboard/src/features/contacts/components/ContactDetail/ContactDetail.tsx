@@ -70,6 +70,126 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
             </div>
           </div>
 
+          {/* Parsed Notes from AI */}
+          {(data.contact.parsed_notes as any) && (
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">AI-Parsed Insights</h3>
+              <div className="space-y-4">
+                {/* Intent Signals */}
+                {(data.contact.parsed_notes as any).intent_signals && (data.contact.parsed_notes as any).intent_signals.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Intent Signals</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(data.contact.parsed_notes as any).intent_signals.map((signal: string, index: number) => (
+                        <Badge key={index} variant={signal === 'none' ? 'secondary' : 'info'}>
+                          {signal}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Objections */}
+                {(data.contact.parsed_notes as any).objections && (data.contact.parsed_notes as any).objections.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Objections</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(data.contact.parsed_notes as any).objections.map((objection: string, index: number) => (
+                        <Badge key={index} variant={objection === 'none' ? 'secondary' : 'warning'}>
+                          {objection}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Timeline & Budget */}
+                <div className="grid grid-cols-2 gap-4">
+                  {(data.contact.parsed_notes as any).timeline && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Timeline</label>
+                      <p className="text-sm text-gray-900 mt-1 capitalize">{(data.contact.parsed_notes as any).timeline}</p>
+                    </div>
+                  )}
+                  {(data.contact.parsed_notes as any).budget_range && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Budget Range</label>
+                      <p className="text-sm text-gray-900 mt-1">{(data.contact.parsed_notes as any).budget_range}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Property Interests */}
+                {(data.contact.parsed_notes as any).property_interests && (data.contact.parsed_notes as any).property_interests.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Property Interests</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(data.contact.parsed_notes as any).property_interests.map((interest: string, index: number) => (
+                        <Badge key={index} variant="success">
+                          {interest}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sentiment & Priority */}
+                <div className="grid grid-cols-3 gap-4">
+                  {(data.contact.parsed_notes as any).sentiment && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Sentiment</label>
+                      <p className="text-sm text-gray-900 mt-1 capitalize">{(data.contact.parsed_notes as any).sentiment}</p>
+                    </div>
+                  )}
+                  {(data.contact.parsed_notes as any).recommended_status && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Recommended Status</label>
+                      <p className="text-sm text-gray-900 mt-1">{(data.contact.parsed_notes as any).recommended_status}</p>
+                    </div>
+                  )}
+                  {(data.contact.parsed_notes as any).follow_up_priority && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Follow-up Priority</label>
+                      <Badge
+                        variant={
+                          (data.contact.parsed_notes as any).follow_up_priority === 'high'
+                            ? 'error'
+                            : (data.contact.parsed_notes as any).follow_up_priority === 'medium'
+                            ? 'warning'
+                            : 'secondary'
+                        }
+                      >
+                        {(data.contact.parsed_notes as any).follow_up_priority}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Key Quotes */}
+                {(data.contact.parsed_notes as any).key_quotes && (data.contact.parsed_notes as any).key_quotes.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Key Quotes</label>
+                    <div className="mt-2 space-y-2">
+                      {(data.contact.parsed_notes as any).key_quotes.map((quote: string, index: number) => (
+                        <div key={index} className="bg-white rounded p-2 border-l-4 border-blue-500">
+                          <p className="text-sm text-gray-700 italic">"{quote}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Latest Notes */}
+          {data.contact.latest_notes && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Latest Notes</h3>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.contact.latest_notes}</p>
+            </div>
+          )}
+
           {/* Engagement Metrics */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Engagement Metrics</h3>

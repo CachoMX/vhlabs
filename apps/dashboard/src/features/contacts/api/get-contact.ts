@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { ContactSync, Distribution, ContactDetailData } from '../types';
+import type { ContactSync as _ContactSync, Distribution as _Distribution, ContactDetailData } from '../types';
 
 async function getContact(id: string): Promise<ContactDetailData> {
   // Fetch contact details

@@ -84,10 +84,10 @@ export function ContactsList({ data }: ContactsListProps) {
   };
 
   // Wrap the DataTable to add row click handlers
-  const dataWithClickHandler = data.map((contact) => ({
-    ...contact,
-    onClick: () => handleRowClick(contact),
-  }));
+  // const _dataWithClickHandler = data.map((contact) => ({
+  //   ...contact,
+  //   onClick: () => handleRowClick(contact),
+  // }));
 
   // Override the columns to add onClick to each row
   const columnsWithClick: ColumnDef<ContactOverview>[] = columns.map((col) => ({

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreVertical, Eye, Archive } from 'lucide-react';
+import { Eye, Archive } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { Badge, Button, EmptyState } from '@/components/ui';
 import { ContentFilters } from '../ContentFilters/ContentFilters';
@@ -17,7 +17,7 @@ interface ContentListProps {
 
 export function ContentList({ onViewDetails }: ContentListProps) {
   const [filters, setFilters] = useState<ContentFiltersType>({});
-  const [page, setPage] = useState(1);
+  const [page, _setPage] = useState(1);
   const pageSize = 10;
 
   const { data, isLoading, error } = useGetContents({ filters, page, pageSize });

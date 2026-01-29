@@ -1,21 +1,16 @@
 import { useState } from 'react';
-import { ColumnDef } from '@tanstack/react-table';
-import { DataTable } from '@/components/DataTable';
 import { Badge, EmptyState } from '@/components/ui';
 import { AnalyticsFilters } from '../AnalyticsFilters/AnalyticsFilters';
 import { useGetWorkflows } from '../../api/get-workflows';
 import type { AnalyticsFilters as AnalyticsFiltersType } from '../../types';
-import type { Database } from '@/types/database.types';
-
-type WorkflowLog = Database['public']['Tables']['workflow_logs']['Row'];
 
 interface WorkflowsTableProps {
   onWorkflowClick?: (workflowId: string) => void;
 }
 
-export function WorkflowsTable({ onWorkflowClick }: WorkflowsTableProps) {
+export function WorkflowsTable({ onWorkflowClick: _onWorkflowClick }: WorkflowsTableProps) {
   const [filters, setFilters] = useState<AnalyticsFiltersType>({});
-  const [page, setPage] = useState(1);
+  const [page, _setPage] = useState(1);
   const pageSize = 10;
 
   const { data, isLoading, error } = useGetWorkflows({ filters, page, pageSize });
@@ -37,96 +32,6 @@ export function WorkflowsTable({ onWorkflowClick }: WorkflowsTableProps) {
     }
   };
 
-  const columns: ColumnDef<WorkflowLog>[] = [
-    {
-      accessorKey: 'workflow_name',
-      header: 'Workflow Name',
-      cell: ({ row }) => (
-        <div className="max-w-md">
-          <div className="font-medium text-gray-900">
-            {row.original.workflow_name || 'Unknown'}
-          </div>
-          {row.original.execution_id && (
-            <div className="text-xs text-gray-500 mt-1 font-mono">
-              {row.original.execution_id.substring(0, 8)}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => (
-        <Badge variant={getStatusVariant(row.original.status)} size="sm">
-          {row.original.status || 'Unknown'}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: 'started_at',
-      header: 'Started At',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-700">
-          {row.original.started_at
-            ? new Date(row.original.started_at).toLocaleString()
-            : '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'completed_at',
-      header: 'Completed At',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-700">
-          {row.original.completed_at
-            ? new Date(row.original.completed_at).toLocaleString()
-            : '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'duration_ms',
-      header: 'Duration',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-700">
-          {row.original.duration_ms !== null
-            ? `${(row.original.duration_ms / 1000).toFixed(2)}s`
-            : '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'nodes_executed',
-      header: 'Nodes',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-700">
-          {row.original.nodes_executed || '0'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'error_data',
-      header: 'Error',
-      cell: ({ row }) => {
-        if (!row.original.error_data) {
-          return <span className="text-sm text-gray-400">-</span>;
-        }
-
-        const errorData = typeof row.original.error_data === 'string'
-          ? row.original.error_data
-          : JSON.stringify(row.original.error_data);
-
-        return (
-          <div className="max-w-xs">
-            <span className="text-sm text-red-600 truncate block" title={errorData}>
-              {errorData}
-            </span>
-          </div>
-        );
-      },
-    },
-  ];
 
   if (error) {
     return (

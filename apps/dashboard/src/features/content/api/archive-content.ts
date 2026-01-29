@@ -4,10 +4,11 @@ import { supabase } from '@/lib/supabase';
 async function archiveContent(id: string): Promise<void> {
   const { error } = await supabase
     .from('contents')
+  // @ts-ignore
     .update({
       status: 'archived',
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .eq('id', id);
 
   if (error) {

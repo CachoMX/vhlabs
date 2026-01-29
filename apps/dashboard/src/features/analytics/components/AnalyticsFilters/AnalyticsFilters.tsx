@@ -58,13 +58,14 @@ export function AnalyticsFilters({ filters, onFiltersChange, mode = 'events' }: 
             <Select
               value={filters.status || ''}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="running">Running</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="cancelled">Cancelled</option>
-            </Select>
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'running', label: 'Running' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'failed', label: 'Failed' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+            />
           </div>
         )}
 

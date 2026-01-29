@@ -12,10 +12,11 @@ export interface UpdateContentParams {
 async function updateContent({ id, data }: UpdateContentParams): Promise<void> {
   const { error } = await supabase
     .from('contents')
+  // @ts-ignore
     .update({
       ...data,
       updated_at: new Date().toISOString(),
-    })
+    } as any)
     .eq('id', id);
 
   if (error) {

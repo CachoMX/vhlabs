@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { PromptWithHistory } from '../types';
-import type { Database } from '@/types/database.types';
+// import type { Database } from '@/types/database.types';
 
-type Prompt = Database['public']['Tables']['prompts']['Row'];
 
 async function getPrompt(id: string): Promise<PromptWithHistory> {
   // Get the specific prompt
@@ -25,7 +24,7 @@ async function getPrompt(id: string): Promise<PromptWithHistory> {
   const { data: versions, error: versionsError } = await supabase
     .from('prompts')
     .select('*')
-    .eq('prompt_id', prompt.prompt_id)
+    .eq('prompt_id', (prompt as any).prompt_id)
     .order('version', { ascending: false });
 
   if (versionsError) {

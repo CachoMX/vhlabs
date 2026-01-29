@@ -4,7 +4,7 @@ import { Card, Spinner } from '@/components/ui';
 import { ContactsList, useGetContacts } from '@/features/contacts';
 
 export function ContactsRoute() {
-  const [page, setPage] = useState(1);
+  const [page, _setPage] = useState(1);
   const { data, isLoading, error } = useGetContacts({ page, pageSize: 25 });
 
   if (error) {

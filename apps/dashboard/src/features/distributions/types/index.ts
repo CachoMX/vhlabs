@@ -1,4 +1,3 @@
-import type { Database } from '@/types/database.types';
 
 export interface DistributionFilters {
   channel?: string;

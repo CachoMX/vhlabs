@@ -7,9 +7,8 @@ import { PerformanceChart } from '../PerformanceChart/PerformanceChart';
 import { useGetDistributions } from '../../api/get-distributions';
 import { useGetDistributionPerformance } from '../../api/get-distribution-performance';
 import type { DistributionFilters as Filters } from '../../types';
-import type { Database } from '@/types/database.types';
+// import type { Database } from '@/types/database.types';
 
-type Distribution = Database['public']['Tables']['distributions']['Row'];
 
 export const DistributionsView: React.FC = () => {
   const [filters, setFilters] = useState<Filters>({});

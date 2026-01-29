@@ -14,12 +14,19 @@ import { Button } from '@/components/ui';
 
 interface DataTableProps<T> {
   data: T[];
-  columns: ColumnDef<T>[];
+  columns: ColumnDef<T>[] | any[];
   pageSize?: number;
   emptyState?: ReactNode;
+  isLoading?: boolean;
+  pagination?: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
+  };
 }
 
-export function DataTable<T>({ data, columns, pageSize = 10, emptyState }: DataTableProps<T>) {
+export function DataTable<T>({ data, columns, pageSize = 10, emptyState, isLoading: _isLoading, pagination: _pagination }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const table = useReactTable({

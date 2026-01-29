@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useGetPrompt } from '../../api/get-prompt';
 import { useUpdatePrompt } from '../../api/update-prompt';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, Textarea, Select, type SelectOption, Spinner } from '@/components/ui';
-import type { Database } from '@/types/database.types';
+// import type { Database } from '@/types/database.types';
 
-type Prompt = Database['public']['Tables']['prompts']['Row'];
+// type Prompt = Database['public']['Tables']['prompts']['Row'];
 
 interface PromptDetailProps {
   promptId: string;

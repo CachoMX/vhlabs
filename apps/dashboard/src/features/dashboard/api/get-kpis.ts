@@ -26,8 +26,8 @@ async function fetchKPIs(): Promise<DashboardKPIs> {
   let avgResponseRate = 0;
 
   if (perfData && perfData.length > 0) {
-    const openRates = perfData.map(d => d.open_rate || 0).filter(rate => rate > 0);
-    const responseRates = perfData.map(d => d.response_rate || 0).filter(rate => rate > 0);
+    const openRates = perfData.map((d: any) => d.open_rate || 0).filter(rate => rate > 0);
+    const responseRates = perfData.map((d: any) => d.response_rate || 0).filter(rate => rate > 0);
 
     avgOpenRate = openRates.length > 0
       ? openRates.reduce((sum, rate) => sum + rate, 0) / openRates.length
