@@ -30,13 +30,6 @@ export const DashboardView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Overview of your investor engagement system
-        </p>
-      </div>
-
       <DashboardFilters filters={filters} onFiltersChange={setFilters} />
 
       <KPIGrid
@@ -45,17 +38,19 @@ export const DashboardView: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
+        <Card className="p-6 flex flex-col">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-          {isLoadingActivity ? (
-            <div className="animate-pulse space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded" />
-              ))}
-            </div>
-          ) : (
-            <ActivityFeed events={activityEvents || []} />
-          )}
+          <div className="flex-1 overflow-y-auto max-h-96">
+            {isLoadingActivity ? (
+              <div className="animate-pulse space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-16 bg-gray-200 rounded" />
+                ))}
+              </div>
+            ) : (
+              <ActivityFeed events={activityEvents || []} />
+            )}
+          </div>
         </Card>
 
         <SystemHealth
