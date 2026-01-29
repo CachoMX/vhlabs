@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd apps/dashboard && npm run build",
+  "outputDirectory": "apps/dashboard/dist",
+  "installCommand": "cd apps/dashboard && npm install",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
