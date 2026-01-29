@@ -60,7 +60,14 @@ export const DistributionsView: React.FC = () => {
     {
       accessorKey: 'subject',
       header: 'Subject',
-      cell: ({ getValue }) => (getValue() as string | null) || '-',
+      cell: ({ getValue }) => {
+        const value = (getValue() as string | null) || '-';
+        return (
+          <div className="max-w-[150px] truncate" title={value}>
+            {value}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'sent_at',
