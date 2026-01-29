@@ -7,14 +7,23 @@ interface ChannelChartProps {
 }
 
 export const ChannelChart: React.FC<ChannelChartProps> = ({ data }) => {
-  const chartData = data.map((item) => ({
-    channel: item.channel,
-    sent: item.total_sent || 0,
-  }));
+  // Group by channel only (combine all message_types per channel)
+  const groupedData = data.reduce((acc, item) => {
+    const existing = acc.find(d => d.channel === item.channel);
+    if (existing) {
+      existing.sent += item.total_sent || 0;
+    } else {
+      acc.push({
+        channel: item.channel,
+        sent: item.total_sent || 0,
+      });
+    }
+    return acc;
+  }, [] as { channel: string; sent: number }[]);
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData}>
+      <BarChart data={groupedData}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="channel" />
         <YAxis />
