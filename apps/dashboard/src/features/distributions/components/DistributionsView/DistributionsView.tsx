@@ -6,6 +6,10 @@ import { ChannelChart } from '../ChannelChart/ChannelChart';
 import { PerformanceChart } from '../PerformanceChart/PerformanceChart';
 import { useGetDistributions } from '../../api/get-distributions';
 import type { DistributionFilters as Filters } from '../../types';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { Database } from '@/types/database.types';
+
+type Distribution = Database['public']['Tables']['distributions']['Row'];
 
 
 export const DistributionsView: React.FC = () => {
@@ -26,57 +30,68 @@ export const DistributionsView: React.FC = () => {
     pageSize: 1000, // Get all for chart calculations
   });
 
-  const columns = [
+  const columns: ColumnDef<Distribution>[] = [
     {
-      key: 'channel',
+      accessorKey: 'channel',
       header: 'Channel',
-      render: (value: string) => (
-        <span className="capitalize font-medium">{value}</span>
+      cell: ({ getValue }) => (
+        <span className="capitalize font-medium">{getValue() as string}</span>
       ),
     },
     {
-      key: 'subject',
+      accessorKey: 'subject',
       header: 'Subject',
-      render: (value: string | null) => value || '-',
+      cell: ({ getValue }) => (getValue() as string | null) || '-',
     },
     {
-      key: 'sent_at',
+      accessorKey: 'sent_at',
       header: 'Sent At',
-      render: (value: string | null) =>
-        value ? new Date(value).toLocaleString() : '-',
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        return value ? new Date(value).toLocaleString() : '-';
+      },
     },
     {
-      key: 'status',
+      accessorKey: 'status',
       header: 'Status',
-      render: (value: string) => (
-        <span className={`
-          inline-flex px-2 py-1 text-xs font-semibold rounded-full
-          ${value === 'delivered' ? 'bg-green-100 text-green-800' : ''}
-          ${value === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
-          ${value === 'failed' ? 'bg-red-100 text-red-800' : ''}
-          ${value === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-        `}>
-          {value}
-        </span>
-      ),
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        return (
+          <span className={`
+            inline-flex px-2 py-1 text-xs font-semibold rounded-full
+            ${value === 'delivered' ? 'bg-green-100 text-green-800' : ''}
+            ${value === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
+            ${value === 'failed' ? 'bg-red-100 text-red-800' : ''}
+            ${value === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+          `}>
+            {value}
+          </span>
+        );
+      },
     },
     {
-      key: 'opened_at',
+      accessorKey: 'opened_at',
       header: 'Opened',
-      render: (value: string | null) => (
-        <span className={value ? 'text-green-600 font-medium' : 'text-gray-400'}>
-          {value ? 'Yes' : 'No'}
-        </span>
-      ),
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        return (
+          <span className={value ? 'text-green-600 font-medium' : 'text-gray-400'}>
+            {value ? 'Yes' : 'No'}
+          </span>
+        );
+      },
     },
     {
-      key: 'response_received',
+      accessorKey: 'response_received',
       header: 'Response',
-      render: (value: boolean) => (
-        <span className={value ? 'text-green-600 font-medium' : 'text-gray-400'}>
-          {value ? 'Yes' : 'No'}
-        </span>
-      ),
+      cell: ({ getValue }) => {
+        const value = getValue() as boolean;
+        return (
+          <span className={value ? 'text-green-600 font-medium' : 'text-gray-400'}>
+            {value ? 'Yes' : 'No'}
+          </span>
+        );
+      },
     },
   ];
 
