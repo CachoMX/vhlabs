@@ -4,8 +4,9 @@ import { Card, Spinner } from '@/components/ui';
 import { ContactsList, useGetContacts } from '@/features/contacts';
 
 export function ContactsRoute() {
-  const [page, _setPage] = useState(1);
-  const { data, isLoading, error } = useGetContacts({ page, pageSize: 25 });
+  const [page, setPage] = useState(1);
+  const pageSize = 100;
+  const { data, isLoading, error } = useGetContacts({ page, pageSize });
 
   if (error) {
     return (
@@ -23,6 +24,10 @@ export function ContactsRoute() {
     );
   }
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
   return (
     <PageContainer>
       <PageHeader
@@ -35,7 +40,20 @@ export function ContactsRoute() {
         </div>
       ) : (
         <Card className="p-6">
-          <ContactsList data={data?.data || []} />
+          {data && (
+            <div className="mb-4 text-sm text-gray-600">
+              Total Contacts: <span className="font-semibold">{data.total.toLocaleString()}</span>
+            </div>
+          )}
+          <ContactsList
+            data={data?.data || []}
+            pagination={{
+              currentPage: page,
+              pageSize,
+              totalItems: data?.total || 0,
+              onPageChange: handlePageChange,
+            }}
+          />
         </Card>
       )}
     </PageContainer>

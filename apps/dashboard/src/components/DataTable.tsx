@@ -26,7 +26,7 @@ interface DataTableProps<T> {
   };
 }
 
-export function DataTable<T>({ data, columns, pageSize = 10, emptyState, isLoading: _isLoading, pagination: _pagination }: DataTableProps<T>) {
+export function DataTable<T>({ data, columns, pageSize = 10, emptyState, isLoading: _isLoading, pagination }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const table = useReactTable({
@@ -49,6 +49,33 @@ export function DataTable<T>({ data, columns, pageSize = 10, emptyState, isLoadi
   if (data.length === 0 && emptyState) {
     return <div>{emptyState}</div>;
   }
+
+  // Use external pagination if provided, otherwise use TanStack Table's pagination
+  const showPagination = pagination ? pagination.totalItems > pagination.pageSize : table.getPageCount() > 1;
+  const currentPage = pagination?.currentPage || table.getState().pagination.pageIndex + 1;
+  const totalPages = pagination ? Math.ceil(pagination.totalItems / pagination.pageSize) : table.getPageCount();
+  const from = pagination ? (pagination.currentPage - 1) * pagination.pageSize + 1 : table.getState().pagination.pageIndex * pageSize + 1;
+  const to = pagination ? Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems) : Math.min((table.getState().pagination.pageIndex + 1) * pageSize, data.length);
+  const total = pagination?.totalItems || data.length;
+
+  const handlePrevious = () => {
+    if (pagination) {
+      pagination.onPageChange(pagination.currentPage - 1);
+    } else {
+      table.previousPage();
+    }
+  };
+
+  const handleNext = () => {
+    if (pagination) {
+      pagination.onPageChange(pagination.currentPage + 1);
+    } else {
+      table.nextPage();
+    }
+  };
+
+  const canGoPrevious = pagination ? pagination.currentPage > 1 : table.getCanPreviousPage();
+  const canGoNext = pagination ? pagination.currentPage < totalPages : table.getCanNextPage();
 
   return (
     <div className="space-y-4">
@@ -115,27 +142,26 @@ export function DataTable<T>({ data, columns, pageSize = 10, emptyState, isLoadi
       </div>
 
       {/* Pagination */}
-      {table.getPageCount() > 1 && (
+      {showPagination && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            Showing {table.getState().pagination.pageIndex * pageSize + 1} to{' '}
-            {Math.min((table.getState().pagination.pageIndex + 1) * pageSize, data.length)} of{' '}
-            {data.length} results
+            Showing {from.toLocaleString()} to {to.toLocaleString()} of {total.toLocaleString()} results
+            {pagination && <span className="ml-2">(Page {currentPage} of {totalPages})</span>}
           </div>
           <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={handlePrevious}
+              disabled={!canGoPrevious}
             >
               Previous
             </Button>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={handleNext}
+              disabled={!canGoNext}
             >
               Next
             </Button>

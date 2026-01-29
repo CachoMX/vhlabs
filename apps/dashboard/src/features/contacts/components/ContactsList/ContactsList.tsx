@@ -6,9 +6,15 @@ import { ContactDetail } from '../ContactDetail/ContactDetail';
 
 interface ContactsListProps {
   data: ContactOverview[];
+  pagination?: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
+  };
 }
 
-export function ContactsList({ data }: ContactsListProps) {
+export function ContactsList({ data, pagination }: ContactsListProps) {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   const columns: ColumnDef<ContactOverview>[] = [
@@ -110,7 +116,8 @@ export function ContactsList({ data }: ContactsListProps) {
       <DataTable
         data={data}
         columns={columnsWithClick}
-        pageSize={25}
+        pageSize={pagination?.pageSize || 100}
+        pagination={pagination}
         emptyState={
           <div className="text-center py-8 text-gray-500">
             No contacts found. Adjust your filters to see more results.
