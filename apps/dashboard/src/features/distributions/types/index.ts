@@ -3,6 +3,7 @@ export interface DistributionFilters {
   channel?: string;
   dateFrom?: string;
   dateTo?: string;
+  search?: string;
 }
 
 export interface DistributionPerformance {

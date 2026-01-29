@@ -87,14 +87,28 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
   // Map contacts to distributions
   const contactMap = new Map(contactsData.map(c => [c.ghl_id, c]));
 
-  const distributionsWithContacts: DistributionWithContact[] = (distributions as Distribution[]).map(dist => ({
+  let distributionsWithContacts: DistributionWithContact[] = (distributions as Distribution[]).map(dist => ({
     ...dist,
     contact: dist.ghl_contact_id ? contactMap.get(dist.ghl_contact_id) || null : null,
   }));
 
+  // Apply search filter (client-side filtering after joining contacts)
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase();
+    distributionsWithContacts = distributionsWithContacts.filter(dist => {
+      if (!dist.contact) return false;
+
+      const name = `${dist.contact.first_name || ''} ${dist.contact.last_name || ''}`.toLowerCase();
+      const email = (dist.contact.email || '').toLowerCase();
+      const phone = (dist.contact.phone || '').toLowerCase();
+
+      return name.includes(searchLower) || email.includes(searchLower) || phone.includes(searchLower);
+    });
+  }
+
   return {
     data: distributionsWithContacts,
-    total: count || 0,
+    total: filters.search ? distributionsWithContacts.length : count || 0,
     page,
     pageSize,
   };

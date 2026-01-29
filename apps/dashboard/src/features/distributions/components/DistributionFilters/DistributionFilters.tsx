@@ -39,35 +39,55 @@ export const DistributionFilters: React.FC<DistributionFiltersProps> = ({
     });
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFiltersChange({
+      ...filters,
+      search: e.target.value || undefined,
+    });
+  };
+
   return (
-    <div className="flex flex-wrap gap-4 items-end">
-      <div className="flex-1 min-w-[200px]">
-        <Select
-          id="channel"
-          label="Channel"
-          value={filters.channel || ''}
-          onChange={handleChannelChange}
-          options={channelOptions}
-        />
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <Select
+            id="channel"
+            label="Channel"
+            value={filters.channel || ''}
+            onChange={handleChannelChange}
+            options={channelOptions}
+          />
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <Input
+            id="dateFrom"
+            label="From Date"
+            type="date"
+            value={filters.dateFrom || ''}
+            onChange={handleDateFromChange}
+          />
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <Input
+            id="dateTo"
+            label="To Date"
+            type="date"
+            value={filters.dateTo || ''}
+            onChange={handleDateToChange}
+          />
+        </div>
       </div>
 
-      <div className="flex-1 min-w-[200px]">
+      <div>
         <Input
-          id="dateFrom"
-          label="From Date"
-          type="date"
-          value={filters.dateFrom || ''}
-          onChange={handleDateFromChange}
-        />
-      </div>
-
-      <div className="flex-1 min-w-[200px]">
-        <Input
-          id="dateTo"
-          label="To Date"
-          type="date"
-          value={filters.dateTo || ''}
-          onChange={handleDateToChange}
+          id="search"
+          label="Search Recipient"
+          type="text"
+          placeholder="Search by name, email, or phone..."
+          value={filters.search || ''}
+          onChange={handleSearchChange}
         />
       </div>
     </div>
