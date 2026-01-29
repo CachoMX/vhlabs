@@ -32,15 +32,7 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
 
   let query = supabase
     .from('distributions')
-    .select(`
-      *,
-      contact:contacts_sync!contact_sync_id(
-        email,
-        phone,
-        first_name,
-        last_name
-      )
-    `, { count: 'exact' });
+    .select('*', { count: 'exact' });
 
   // Apply filters
   if (filters.channel) {
@@ -63,14 +55,45 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
   // Order by sent_at descending
   query = query.order('sent_at', { ascending: false });
 
-  const { data, error, count } = await query;
+  const { data: distributions, error, count } = await query;
 
   if (error) {
     throw new Error(`Failed to fetch distributions: ${error.message}`);
   }
 
+  if (!distributions || distributions.length === 0) {
+    return {
+      data: [],
+      total: count || 0,
+      page,
+      pageSize,
+    };
+  }
+
+  // Get unique ghl_contact_ids
+  const ghlContactIds = [...new Set((distributions as Distribution[]).map(d => d.ghl_contact_id).filter(Boolean))];
+
+  // Fetch contacts by ghl_id
+  let contactsData: any[] = [];
+  if (ghlContactIds.length > 0) {
+    const { data: contacts } = await supabase
+      .from('contacts_sync')
+      .select('ghl_id, email, phone, first_name, last_name')
+      .in('ghl_id', ghlContactIds);
+
+    contactsData = contacts || [];
+  }
+
+  // Map contacts to distributions
+  const contactMap = new Map(contactsData.map(c => [c.ghl_id, c]));
+
+  const distributionsWithContacts: DistributionWithContact[] = (distributions as Distribution[]).map(dist => ({
+    ...dist,
+    contact: dist.ghl_contact_id ? contactMap.get(dist.ghl_contact_id) || null : null,
+  }));
+
   return {
-    data: (data as any) || [],
+    data: distributionsWithContacts,
     total: count || 0,
     page,
     pageSize,
