@@ -29,6 +29,7 @@ interface DataTableProps<T> {
 export function DataTable<T>({ data, columns, pageSize = 10, emptyState, isLoading: _isLoading, pagination }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  // If external pagination is provided, don't use client-side pagination
   const table = useReactTable({
     data,
     columns,
@@ -38,10 +39,11 @@ export function DataTable<T>({ data, columns, pageSize = 10, emptyState, isLoadi
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    // Only use client-side pagination if no external pagination is provided
+    ...(pagination ? {} : { getPaginationRowModel: getPaginationRowModel() }),
     initialState: {
       pagination: {
-        pageSize,
+        pageSize: pagination?.pageSize || pageSize,
       },
     },
   });

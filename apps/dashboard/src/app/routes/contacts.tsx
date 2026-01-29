@@ -5,7 +5,7 @@ import { ContactsList, useGetContacts } from '@/features/contacts';
 
 export function ContactsRoute() {
   const [page, setPage] = useState(1);
-  const pageSize = 100;
+  const [pageSize, setPageSize] = useState(100);
   const { data, isLoading, error } = useGetContacts({ page, pageSize });
 
   if (error) {
@@ -28,6 +28,11 @@ export function ContactsRoute() {
     setPage(newPage);
   };
 
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setPage(1); // Reset to first page when changing page size
+  };
+
   return (
     <PageContainer>
       <PageHeader
@@ -41,8 +46,26 @@ export function ContactsRoute() {
       ) : (
         <Card className="p-6">
           {data && (
-            <div className="mb-4 text-sm text-gray-600">
-              Total Contacts: <span className="font-semibold">{data.total.toLocaleString()}</span>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Total Contacts: <span className="font-semibold">{data.total.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="pageSize" className="text-sm text-gray-600">
+                  Show:
+                </label>
+                <select
+                  id="pageSize"
+                  value={pageSize}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span className="text-sm text-gray-600">per page</span>
+              </div>
             </div>
           )}
           <ContactsList
