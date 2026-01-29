@@ -1,0 +1,465 @@
+{
+  "name": "S1-05: Setter Message Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "fe3786e7-5d86-45c0-a394-df8c4ca01189",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1328,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/touchpoint_queue?status=eq.processing&scheduled_for=lte.{{ new Date().toISOString() }}&order=scheduled_for.asc&limit=20",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "e39cd2a7-7b19-4892-a305-bf5831a8244c",
+      "name": "Get Ready to Send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1104,
+        96
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has_items",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a9c74b21-6992-4f15-98ec-0a04825fa442",
+      "name": "Has Items to Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "70d61dfd-c16c-4a6d-94f2-e667434a7304",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -656,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?ghl_id=eq.{{ $json.ghl_contact_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "9c42e968-e64f-412a-8e98-1c0d1c83739e",
+      "name": "Get Contact Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -432,
+        96
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is_email",
+              "leftValue": "={{ $('Process in Batches').first().json.channel }}",
+              "rightValue": "email",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "67f916a4-30ff-4bcc-9f61-ec368c06d22b",
+      "name": "Email or SMS?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/conversations/messages\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer pit-c32c4d2c-bda8-4e9a-8df1-14c237e11351"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"Email\",\n  \"contactId\": \"{{ $('Process in Batches').first().json.ghl_contact_id }}\",\n  \"subject\": \"{{ $('Process in Batches').first().json.subject || 'Quick update for you' }}\",\n  \"html\": {{ JSON.stringify('<p>' + $('Process in Batches').first().json.message_content.replace(/\\n/g, '</p><p>') + '</p>') }}\n}",
+        "options": {}
+      },
+      "id": "44422ef3-e220-4fbe-8bda-52ac43d1043b",
+      "name": "Send Email via GHL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        16,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/conversations/messages\n",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"SMS\",\n  \"contactId\": \"{{ $('Process in Batches').first().json.ghl_contact_id }}\",\n  \"message\": \"{{ $('Process in Batches').first().json.message_content.substring(0, 160) }}\"\n}",
+        "options": {}
+      },
+      "id": "b13b131e-06bd-4818-9921-4d70ffe33644",
+      "name": "Send SMS via GHL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        16,
+        192
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "4a55a6c3-34cb-48f0-b3bf-c800102b9cb9",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        240,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": " return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ghl_contact_id\": \"{{ $('Process in Batches').first().json.ghl_contact_id }}\",\n  \"channel\": \"{{ $('Process in Batches').first().json.channel }}\",\n  \"message_type\": \"{{ $('Process in Batches').first().json.message_type }}\",\n  \"subject\": {{ $('Process in Batches').first().json.subject ? '\"' + $('Process in Batches').first().json.subject + '\"' : 'null' }},\n  \"message_content\": {{ JSON.stringify($('Process in Batches').first().json.message_content) }},\n  \"sent_at\": \"{{ new Date().toISOString() }}\",\n  \"status\": \"sent\"\n}",
+        "options": {}
+      },
+      "id": "d60616af-6dba-40e5-8a0d-449f97da2bf3",
+      "name": "Create Distribution Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        96
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/touchpoint_queue?id=eq.{{ $('Process in Batches').first().json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"sent\",\n  \"processed_at\": \"{{ new Date().toISOString() }}\",\n  \"distribution_id\": \"{{ $json.id || $json[0]?.id }}\"\n}",
+        "options": {}
+      },
+      "id": "ced23052-80b5-4f02-877a-3d6f07160df8",
+      "name": "Update Queue: Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        96
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?ghl_id=eq.{{ $('Process in Batches').first().json.ghl_contact_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"last_touchpoint_at\": \"{{ new Date().toISOString() }}\",\n  \"touchpoint_count\": {{ (($('Get Contact Info').first().json?.touchpoint_count || 0) + 1) }}\n}",
+        "options": {}
+      },
+      "id": "d42208bf-d45e-4162-b487-adc1b7b3f139",
+      "name": "Update Contact Touchpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        912,
+        96
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# 📋 S1-05: Setter Message Sender Workflow\n\n## 🎯 What This Workflow Does\nPolls the touchpoint queue every 15 minutes and sends messages that are ready (generated + scheduled time reached). Routes to email or SMS via GoHighLevel, then logs everything for tracking.\n\n---\n\n## 🔄 How It Works (Step by Step)\n\n### Step 1: Schedule Trigger\n**Node:** `Every 15 Minutes`\n- Runs automatically every 15 minutes\n- Independent of other workflows\n\n### Step 2: Fetch Ready Messages\n**Node:** `Get Ready to Send`\n- Query: `touchpoint_queue`\n- Filters:\n  - `status = processing` (message generated)\n  - `scheduled_for <= now` (time to send)\n- Ordered by: `scheduled_for` (oldest first)\n- Limit: 20 items\n\n### Step 3: Check for Items\n**Node:** `Has Items to Send?`\n- ❌ No items → Exit\n- ✅ Items found → Continue\n\n### Step 4: Batch Processing\n**Node:** `Process in Batches`\n- Batch size: 5 items\n- Prevents GHL rate limits\n\n### Step 5: Get Contact Info\n**Node:** `Get Contact Info`\n- Fetches contact from `contacts_sync`\n- Gets current `touchpoint_count` for increment\n\n### Step 6: Route by Channel\n**Node:** `Email or SMS?`\n\n| Channel | Route |\n|---------|-------|\n| `email` | Send Email via GHL |\n| `sms` | Send SMS via GHL |\n\n### Step 7a: Send Email\n**Node:** `Send Email via GHL`\n- Endpoint: `/conversations/messages`\n- Type: `Email`\n- Converts newlines to `<p>` tags\n- Default subject: \"Quick update for you\"\n\n### Step 7b: Send SMS\n**Node:** `Send SMS via GHL`\n- Endpoint: `/conversations/messages`\n- Type: `SMS`\n- Truncates to 160 characters\n\n### Step 8: Merge Results\n**Node:** `Merge Results`\n- Combines email/SMS paths back together\n\n### Step 9: Create Distribution Record\n**Node:** `Create Distribution Record`\n- Table: `distributions`\n- Logs: contact, channel, message type, content, sent timestamp\n- Status: `sent`\n\n### Step 10: Update Queue Status\n**Node:** `Update Queue: Sent`\n- Updates `touchpoint_queue`\n- Status: `processing` → `sent`\n- Sets `processed_at` timestamp\n- Links `distribution_id`\n\n### Step 11: Update Contact Stats\n**Node:** `Update Contact Touchpoint`\n- Updates `contacts_sync`\n- Sets `last_touchpoint_at`\n- Increments `touchpoint_count`\n\n---\n\n## 📊 Queue Status Flow\n```\npending → processing → sent\n   ↓          ↓\n(S1-03)    (S1-04)    (S1-05)\n```\n\n| Status | Meaning |\n|--------|---------|\n| `pending` | Scheduled, waiting for message generation |\n| `processing` | Message generated, waiting for send time |\n| `sent` | Successfully delivered via GHL |\n| `failed` | Error occurred |\n\n---\n\n## 📧 Message Formatting\n\n| Channel | Format | Limit |\n|---------|--------|-------|\n| **Email** | HTML (`<p>` wrapped) | No limit |\n| **SMS** | Plain text | 160 chars |\n\n---\n\n## ⚙️ Current Configuration\n\n| Setting | Value |\n|---------|-------|\n| Schedule | Every 15 minutes |\n| Batch Size | 5 messages |\n| Queue Limit | 20 per run |\n| CRM | GoHighLevel |\n| Database | Supabase (VH Labs) |\n| Status | ⚠️ Inactive |\n\n---\n\n## 🔗 Workflow Chain\n```\nS1-03: Touchpoint Scheduler\n    ↓\nS1-04: Setter Message Generator\n    ↓\nS1-05: Setter Message Sender ← you are here\n    ↓\nS1-06: Response Handler (listens for replies)\n```\n\n---\n\n## 💡 Key Benefits for Client\n\n✅ **Scheduled delivery** - Messages sent at optimal times (not all at once)  \n✅ **Multi-channel** - Email and SMS from single queue  \n✅ **Full tracking** - Every send logged in `distributions` table  \n✅ **Contact history** - Touchpoint count tracks engagement frequency  \n✅ **Rate limiting** - Batched to avoid API throttling",
+        "height": 3232,
+        "width": 848,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2224,
+        -688
+      ],
+      "id": "695e712c-7785-4896-adad-0e40842054ff",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Ready to Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Ready to Send": {
+      "main": [
+        [
+          {
+            "node": "Has Items to Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Items to Send?": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get Contact Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Info": {
+      "main": [
+        [
+          {
+            "node": "Email or SMS?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email or SMS?": {
+      "main": [
+        [
+          {
+            "node": "Send Email via GHL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send SMS via GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email via GHL": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS via GHL": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Create Distribution Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Distribution Record": {
+      "main": [
+        [
+          {
+            "node": "Update Queue: Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Queue: Sent": {
+      "main": [
+        [
+          {
+            "node": "Update Contact Touchpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "edbb289e-43d2-4e02-9f80-b20f9f22fe19",
+  "meta": {
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "ua9k0uFAdGeZ5Zg7",
+  "tags": []
+}

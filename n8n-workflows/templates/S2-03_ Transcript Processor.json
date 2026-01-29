@@ -1,13 +1,16 @@
 {
-  "name": "S2-03 Transcript Processor",
+  "name": "S2-03: Transcript Processor",
   "nodes": [
     {
       "parameters": {},
-      "id": "start",
+      "id": "b1eb9bdf-a37d-47be-8479-a8d57cc10440",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        272,
+        -240
+      ]
     },
     {
       "parameters": {
@@ -32,21 +35,27 @@
         },
         "options": {}
       },
-      "id": "has_transcript",
+      "id": "66f2740e-e6ff-4cd4-90c3-3f5fe487364f",
       "name": "Has Raw Transcript?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        480,
+        -240
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Check if source_url is a video/audio that needs transcription\nconst content = $input.first().json;\nconst url = content.source_url || '';\n\nconst audioExtensions = ['.mp3', '.wav', '.m4a', '.ogg', '.webm'];\nconst videoExtensions = ['.mp4', '.mov', '.avi', '.mkv'];\nconst needsTranscription = [...audioExtensions, ...videoExtensions].some(ext => url.toLowerCase().includes(ext));\n\n// Check for known video platforms\nconst isYouTube = url.includes('youtube.com') || url.includes('youtu.be');\nconst isVimeo = url.includes('vimeo.com');\nconst isLoom = url.includes('loom.com');\n\nreturn {\n  json: {\n    content_id: content.id,\n    source_url: url,\n    needs_transcription: needsTranscription || isYouTube || isVimeo || isLoom,\n    platform: isYouTube ? 'youtube' : isVimeo ? 'vimeo' : isLoom ? 'loom' : 'direct',\n    description: content.description\n  }\n};"
       },
-      "id": "check_media_type",
+      "id": "2b5406b9-8849-4bd7-b7b1-74a247311693",
       "name": "Check Media Type",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 400]
+      "position": [
+        704,
+        -144
+      ]
     },
     {
       "parameters": {
@@ -71,64 +80,73 @@
         },
         "options": {}
       },
-      "id": "needs_transcription",
+      "id": "12e54605-2e82-4d3c-a2e0-6e58eae48746",
       "name": "Needs Transcription?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 400]
+      "position": [
+        928,
+        -144
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Placeholder for transcription API integration\n// Options: OpenAI Whisper, AssemblyAI, Deepgram, etc.\n\nconst input = $input.first().json;\n\n// In production, you would call the transcription API here\n// Example with OpenAI Whisper:\n// 1. Download audio/video\n// 2. POST to https://api.openai.com/v1/audio/transcriptions\n// 3. Return transcript\n\n// For now, return placeholder\nreturn {\n  json: {\n    content_id: input.content_id,\n    transcript_raw: `[Transcription pending for: ${input.source_url}]\\n\\nThis content requires manual transcription or API integration.\\n\\nDescription: ${input.description || 'No description provided'}`,\n    transcription_status: 'pending_manual',\n    source_url: input.source_url,\n    platform: input.platform\n  }\n};\n\n// TODO: Implement actual transcription\n// Recommended: AssemblyAI for best accuracy\n// API: https://www.assemblyai.com/docs"
       },
-      "id": "transcribe_audio",
+      "id": "f9b7cf11-db2c-491d-a519-0508911a90a8",
       "name": "Transcribe Audio/Video",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1152,
+        -240
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Use description as transcript fallback\nconst input = $input.first().json;\n\nreturn {\n  json: {\n    content_id: input.content_id,\n    transcript_raw: input.description || 'No transcript available',\n    transcription_status: 'from_description',\n    source_url: input.source_url\n  }\n};"
       },
-      "id": "use_description",
+      "id": "d05e11e5-e098-4664-aac5-422156055b6d",
       "name": "Use Description as Transcript",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 500]
+      "position": [
+        1152,
+        -32
+      ]
     },
     {
       "parameters": {},
-      "id": "merge_transcript",
+      "id": "9a9d129c-413d-4578-a68a-88150a7e906b",
       "name": "Merge",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [1340, 400]
+      "position": [
+        1376,
+        -144
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/prompts?prompt_id=eq.transcript_cleaner&is_active=eq.true&limit=1",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
-            }
-          ]
-        },
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.transcript_cleaner&is_active=eq.true&limit=1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "options": {}
       },
-      "id": "get_cleaner_prompt",
+      "id": "a8db664d-1d15-427f-8909-55fe8f9bfae7",
       "name": "Get Cleaner Prompt",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 400]
+      "position": [
+        1584,
+        -144
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
@@ -162,11 +180,14 @@
         },
         "options": {}
       },
-      "id": "should_clean",
+      "id": "9efbc9e6-4684-4430-b0d0-5bd3ccea0328",
       "name": "Should Clean?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1780, 400]
+      "position": [
+        1808,
+        -144
+      ]
     },
     {
       "parameters": {
@@ -196,83 +217,109 @@
           "timeout": 120000
         }
       },
-      "id": "claude_clean",
+      "id": "c5c6f070-1238-480a-ac8b-d213bdfa7666",
       "name": "Claude: Clean Transcript",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2000, 300]
+      "position": [
+        2032,
+        -240
+      ]
     },
     {
       "parameters": {
         "jsCode": "const response = $input.first().json;\nconst mergeData = $node['Merge'].first().json;\n\nconst cleanedTranscript = response.content?.[0]?.text || mergeData.transcript_raw;\n\nreturn {\n  json: {\n    content_id: mergeData.content_id,\n    transcript_raw: mergeData.transcript_raw,\n    transcript_cleaned: cleanedTranscript,\n    was_cleaned: true\n  }\n};"
       },
-      "id": "use_cleaned",
+      "id": "77eff8c4-e740-4133-aca2-583337f50a4b",
       "name": "Use Cleaned Transcript",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 300]
+      "position": [
+        2256,
+        -240
+      ]
     },
     {
       "parameters": {
         "jsCode": "const mergeData = $node['Merge'].first().json;\n\nreturn {\n  json: {\n    content_id: mergeData.content_id,\n    transcript_raw: mergeData.transcript_raw,\n    transcript_cleaned: mergeData.transcript_raw,\n    was_cleaned: false\n  }\n};"
       },
-      "id": "skip_cleaning",
+      "id": "cedffbee-20eb-41c0-bba2-6e9abdd5fe12",
       "name": "Skip Cleaning",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 500]
+      "position": [
+        2256,
+        -32
+      ]
     },
     {
       "parameters": {},
-      "id": "merge_final",
+      "id": "7fdc43e7-5fdc-4bf6-a6a4-1e09a08ec8cc",
       "name": "Merge Final",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [2440, 400]
+      "position": [
+        2464,
+        -144
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/contents?id=eq.{{ $json.content_id }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"transcript_raw\": {{ JSON.stringify($json.transcript_cleaned) }}\n}",
         "options": {}
       },
-      "id": "update_content",
+      "id": "dd48862b-1926-485b-9373-3da624528628",
       "name": "Update Content with Transcript",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2660, 400]
+      "position": [
+        2688,
+        -144
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Pass existing transcript through\nconst content = $input.first().json;\n\nreturn {\n  json: {\n    content_id: content.id,\n    transcript_raw: content.transcript_raw,\n    transcript_cleaned: content.transcript_raw,\n    was_cleaned: false,\n    status: 'already_has_transcript'\n  }\n};"
       },
-      "id": "pass_through",
+      "id": "ebe3a435-96b7-44e8-ab40-16e1cbb46e4e",
       "name": "Pass Through Existing",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 200]
+      "position": [
+        704,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return the cleaned transcript to S2-02\nconst finalData = $node['Merge Final'].first().json;\n\nreturn {\n  json: {\n    content_id: finalData.content_id,\n    transcript_raw: finalData.transcript_raw,\n    transcript_cleaned: finalData.transcript_cleaned,\n    was_cleaned: finalData.was_cleaned\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2896,
+        -144
+      ],
+      "id": "19ff9b22-23a7-4a08-a703-c596cfb2ba42",
+      "name": "Return Result to S2-02"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3072,
+        -400
+      ],
+      "id": "d46e6178-8eda-4bb4-a192-8c9b2047a054",
+      "name": "Merge1"
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
@@ -437,13 +484,49 @@
           }
         ]
       ]
+    },
+    "Update Content with Transcript": {
+      "main": [
+        [
+          {
+            "node": "Return Result to S2-02",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Result to S2-02": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pass Through Existing": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
+  "versionId": "81605eaf-9849-482c-90f0-be0e4b2f3b58",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
-  "tags": ["Austin CG", "System 2", "Content Pipeline"]
+  "id": "UoQhCBOzMnGgpDEd",
+  "tags": []
 }

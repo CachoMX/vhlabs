@@ -1,0 +1,379 @@
+{
+  "name": "S4-03: GHL Contact Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "09bc6692-33a8-4a6f-8868-3ead62054507",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -656,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://services.leadconnectorhq.com/contacts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "locationId",
+              "value": "f2G0nagaIaxhq7ZJr29z"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer pit-c32c4d2c-bda8-4e9a-8df1-14c237e11351"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "locationId",
+              "value": "f2G0nagaIaxhq7ZJr29z"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "id": "5d547892-b20e-49c4-90e1-c65b440bb599",
+      "name": "Get GHL Contacts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has_contacts",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "565db2f5-30aa-4980-8fd8-b993c9ab79c2",
+      "name": "Has Contacts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst contacts = response.contacts || [];\n\n// Map GHL contacts to our schema\nreturn contacts.map(contact => ({\n  json: {\n    ghl_id: contact.id,\n    ghl_location_id: contact.locationId,\n    email: contact.email,\n    phone: contact.phone,\n    first_name: contact.firstName,\n    last_name: contact.lastName,\n    segment: contact.customField?.segment || null,\n    investor_status: contact.customField?.investor_status || null,\n    tags: contact.tags || [],\n    latest_notes: contact.notes?.substring(0, 2000) || null\n  }\n}));"
+      },
+      "id": "d46dd41b-c723-4c92-822e-8be531f31d8f",
+      "name": "Map Contact Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "10d6086c-2255-4c6f-b4b1-487abe601eda",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?on_conflict=ghl_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ghl_id\": \"{{ $json.ghl_id }}\",\n  \"ghl_location_id\": \"{{ $json.ghl_location_id }}\",\n  \"email\": {{ $json.email ? '\"' + $json.email + '\"' : 'null' }},\n  \"phone\": {{ $json.phone ? '\"' + $json.phone + '\"' : 'null' }},\n  \"first_name\": {{ $json.first_name ? JSON.stringify($json.first_name) : 'null' }},\n  \"last_name\": {{ $json.last_name ? JSON.stringify($json.last_name) : 'null' }},\n  \"segment\": {{ $json.segment ? '\"' + $json.segment + '\"' : 'null' }},\n  \"investor_status\": {{ $json.investor_status ? '\"' + $json.investor_status + '\"' : 'null' }},\n  \"tags\": {{ JSON.stringify($json.tags) }},\n  \"latest_notes\": {{ $json.latest_notes ? JSON.stringify($json.latest_notes) : 'null' }},\n  \"last_synced_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "31eeb291-1c85-4167-9df0-26e8506f1574",
+      "name": "Upsert to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        528,
+        32
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Count successful syncs\nconst items = $input.all();\nconst successCount = items.filter(item => !item.json.error).length;\nconst errorCount = items.filter(item => item.json.error).length;\n\nreturn {\n  json: {\n    sync_completed: true,\n    contacts_synced: successCount,\n    errors: errorCount,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "e8c8e82d-b5b2-477f-8132-db2ebb309106",
+      "name": "Count Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "5d995586-a437-431e-82f7-d78c875dd561",
+      "name": "No Contacts",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format for S4-02: Analytics Logger\nconst stats = $input.first().json;\n\nreturn {\n  json: {\n    event_type: \"contact_sync_completed\",\n    event_category: \"system\",\n    workflow_name: \"S4-03: GHL Contact Sync\",\n    event_data: {\n      contacts_synced: stats.contacts_synced,\n      errors: stats.errors,\n      sync_completed: stats.sync_completed,\n      timestamp: stats.timestamp\n    },\n    success: stats.errors === 0\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -160
+      ],
+      "id": "fcb62422-8ee4-407a-949f-a3c7ac0a2890",
+      "name": "Format Analytics Event"
+    },
+    {
+      "parameters": {
+        "content": "## 🔄 S4-03: GHL Contact Sync\n\n### 🎯 Purpose\nHourly synchronization of GoHighLevel contacts to Supabase `contacts_sync` table, keeping the local database up-to-date with CRM data.\n\n---\n\n### 🔄 Flow\n\n| Step | Node | Action |\n|------|------|--------|\n| 1 | Every Hour | Schedule trigger |\n| 2 | Get GHL Contacts | Fetches contacts from GHL API (limit 100) |\n| 3 | Has Contacts? | Checks if response contains contacts |\n| 4 | Map Contact Data | Transforms GHL schema → local schema |\n| 5 | Process in Batches | Iterates through contacts |\n| 6 | Upsert to Supabase | Insert/update on `ghl_id` conflict |\n| 7 | Count Results | Tallies successes and errors |\n| 8 | Format Analytics Event | Prepares data for logger |\n| 9 | Log Sync Event | Sends to S4-02: Analytics Logger |\n\n---\n\n### 🗺️ Field Mapping\n\n| GHL Field | Supabase Field |\n|-----------|----------------|\n| `id` | `ghl_id` |\n| `locationId` | `ghl_location_id` |\n| `email` | `email` |\n| `phone` | `phone` |\n| `firstName` | `first_name` |\n| `lastName` | `last_name` |\n| `customField.segment` | `segment` |\n| `customField.investor_status` | `investor_status` |\n| `tags` | `tags` |\n| `notes` (first 2000 chars) | `latest_notes` |\n| *(auto-generated)* | `last_synced_at` |\n\n---\n\n### 🗄️ Database\n\n| Table | Operation |\n|-------|-----------|\n| `contacts_sync` | Upsert (merge on `ghl_id` conflict) |\n\n**Upsert behavior:** `resolution=merge-duplicates`\n- New contacts → inserted\n- Existing contacts → updated with latest data\n\n---\n\n### 📊 Analytics Event\n\nLogs to **S4-02: Analytics Logger**:\n```json\n{\n  \"event_type\": \"contact_sync_completed\",\n  \"event_category\": \"system\",\n  \"workflow_name\": \"S4-03: GHL Contact Sync\",\n  \"event_data\": {\n    \"contacts_synced\": 100,\n    \"errors\": 0\n  },\n  \"success\": true\n}\n```\n\n---\n\n### ⚙️ Configuration\n\n| Setting | Value |\n|---------|-------|\n| **GHL Location ID** | `f2G0nagaIaxhq7ZJr29z` |\n| **Contacts per run** | 100 |\n| **Frequency** | Every hour |\n\n---\n\n### 🔗 Workflow Chain\n```\nGHL CRM \n    → S4-03 (Contact Sync) \n        → Supabase contacts_sync\n        → S4-02 (Analytics Logger)\n```\n\n---\n\n### ❌ Status: **Inactive**",
+        "height": 1792,
+        "width": 912,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1648,
+        -704
+      ],
+      "id": "19c17abf-e50e-47d1-84ae-e47d7d148ace",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "WQ6fyZOn5BOV8CCN",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/WQ6fyZOn5BOV8CCN",
+          "cachedResultName": "VH Labs — S4-02 Analytics Logger"
+        },
+        "options": {}
+      },
+      "id": "a108c767-125d-4338-af10-945d265f45df",
+      "name": "S4-02 Analytics Logger",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1232,
+        -128
+      ]
+    }
+  ],
+  "pinData": {
+    "Count Results": [
+      {
+        "json": {
+          "sync_completed": true,
+          "contacts_synced": 100,
+          "errors": 0,
+          "timestamp": "2026-01-29T01:41:41.584Z"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Get GHL Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get GHL Contacts": {
+      "main": [
+        [
+          {
+            "node": "Has Contacts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Contacts?": {
+      "main": [
+        [
+          {
+            "node": "Map Contact Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Contact Data": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [
+          {
+            "node": "Count Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upsert to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Results": {
+      "main": [
+        [
+          {
+            "node": "Format Analytics Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Analytics Event": {
+      "main": [
+        [
+          {
+            "node": "S4-02 Analytics Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "64ebae66-bf6f-4c7d-86c0-06e8c6734417",
+  "meta": {
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "yMZBowVs6Qi19iSF",
+  "tags": []
+}

@@ -1,0 +1,418 @@
+{
+  "name": "S1-04: Setter Message Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "896276e3-da48-4458-8e3b-67a9795f0027",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/touchpoint_queue?status=eq.pending&order=scheduled_for.asc&limit=50",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "a1d3fa8e-c855-4439-b25c-a594de07eec6",
+      "name": "Get Pending Queue Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -432,
+        80
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has_items",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8dfed66f-8f24-4e32-99c3-9f97403a576b",
+      "name": "Has Queue Items?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "9b65d523-b01b-4755-a8eb-11411607077c",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        16,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?id=eq.{{ $json.contact_sync_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "24758e2a-2267-46bd-8b0d-9b918417b997",
+      "name": "Get Contact Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueItem = $('Process in Batches').first().json;\nconst contactData = $input.first().json;\n\n// Debug: Ver qué está recibiendo\nconsole.log('Queue Item:', queueItem);\nconsole.log('Contact Data:', contactData);\nconsole.log('Is Array:', Array.isArray(contactData));\n\n// Get contact (if it's an array, take first item)\nconst contact = Array.isArray(contactData) ? contactData[0] : contactData;\n\nconsole.log('Contact investor_status:', contact?.investor_status);\n\n// Select prompt based on investor status\nconst promptMap = {\n  'hot_lead': 'setter_hot_lead',\n  'dormant': 'setter_dormant_reengagement',\n  'objection_holder': 'setter_objection_response',\n  'active_investor': 'setter_update_base',\n  'passive_investor': 'setter_update_base',\n  'jv_potential': 'setter_update_base',\n  'tire_kicker': 'setter_update_base'\n};\n\nconst promptId = promptMap[contact?.investor_status] || 'setter_update_base';\n\nconsole.log('Selected prompt:', promptId);\n\nreturn {\n  json: {\n    queue_id: queueItem.id,\n    contact: contact,\n    prompt_id: promptId,\n    channel: queueItem.channel,\n    message_type: queueItem.message_type\n  }\n};"
+      },
+      "id": "a809341a-d712-4806-b5d4-65aa4912c0a4",
+      "name": "Select Prompt by Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co//rest/v1/prompts?prompt_id=eq.{{ $json.prompt_id }}&is_active=eq.true&limit=1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "fe22bd62-4819-4c39-b178-3246b967f604",
+      "name": "Get Prompt from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 300,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\n        $node['Get Prompt from Supabase'].json[0]?.content + \n        '\\n\\nContact name: ' + ($node['Select Prompt by Status'].json.contact?.first_name || 'there') +\n        '\\nSegment: ' + ($node['Select Prompt by Status'].json.contact?.segment || 'general') +\n        '\\nStatus: ' + ($node['Select Prompt by Status'].json.contact?.investor_status || 'unknown') +\n        '\\nLast notes: ' + ($node['Select Prompt by Status'].json.contact?.latest_notes?.substring(0, 500) || 'No previous notes') +\n        '\\nChannel: ' + $node['Select Prompt by Status'].json.channel\n      ) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "164b9744-98ad-42ed-a9c6-1c5dc43703b5",
+      "name": "Claude: Generate Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        912,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst prevData = $('Select Prompt by Status').first().json;  // ← Cambiado aquí\n\ntry {\n  const text = response.content[0].text;\n  \n  // For email, split subject and body\n  let subject = null;\n  let body = text;\n  \n  if (prevData.channel === 'email') {\n    const lines = text.split('\\n');\n    if (lines[0].toLowerCase().startsWith('subject:')) {\n      subject = lines[0].replace(/^subject:\\s*/i, '').trim();\n      body = lines.slice(2).join('\\n').trim(); // Skip subject and blank line\n    }\n  }\n  \n  return {\n    json: {\n      queue_id: prevData.queue_id,\n      contact: prevData.contact,\n      channel: prevData.channel,\n      subject: subject,\n      message_content: body,\n      generated_at: new Date().toISOString(),\n      success: true\n    }\n  };\n} catch (error) {\n  return {\n    json: {\n      queue_id: prevData.queue_id,\n      success: false,\n      error: error.message\n    }\n  };\n}"
+      },
+      "id": "d44c08a0-ae32-4d9f-94f2-e5835888990e",
+      "name": "Parse Generated Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/touchpoint_queue?id=eq.{{ $json.queue_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message_content\": {{ JSON.stringify($json.message_content) }},\n  \"status\": \"{{ $json.success ? 'processing' : 'failed' }}\"\n}",
+        "options": {}
+      },
+      "id": "0504b77a-f94c-4c09-9cfb-c46c1ff553fb",
+      "name": "Update Queue with Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "id": "93befabc-ecf1-454f-a989-03c99bd98c83",
+      "name": "Trigger Sender Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1584,
+        80
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "# 📋 S1-04: Setter Message Generator Workflow\n\n## 🎯 What This Workflow Does\nProcesses the touchpoint queue and uses AI to generate personalized messages for each contact based on their status, segment, and history. Stores generated messages back in the queue for sending.\n\n---\n\n## 🔄 How It Works (Step by Step)\n\n### Step 1: Triggered by Scheduler\n**Node:** `Start` (Execute Workflow Trigger)\n- Called from: `S1-03: Touchpoint Scheduler`\n- Receives queue entry data\n\n### Step 2: Fetch Pending Queue Items\n**Node:** `Get Pending Queue Items`\n- Query: `touchpoint_queue` where status = `pending`\n- Ordered by: `scheduled_for` (ascending)\n- Limit: 50 items\n\n### Step 3: Check for Items\n**Node:** `Has Queue Items?`\n- ❌ No items → Exit\n- ✅ Items found → Continue\n\n### Step 4: Batch Processing\n**Node:** `Process in Batches`\n- Batch size: 5 items per iteration\n- Prevents API rate limits\n\n### Step 5: Get Contact Details\n**Node:** `Get Contact Details`\n- Fetches full contact record from `contacts_sync`\n- Uses `contact_sync_id` from queue item\n\n### Step 6: Select AI Prompt\n**Node:** `Select Prompt by Status`\n\n| Investor Status | Prompt ID |\n|-----------------|-----------|\n| `hot_lead` | `setter_hot_lead` |\n| `dormant` | `setter_dormant_reengagement` |\n| `objection_holder` | `setter_objection_response` |\n| `active_investor` | `setter_update_base` |\n| `passive_investor` | `setter_update_base` |\n| `jv_potential` | `setter_update_base` |\n| `tire_kicker` | `setter_update_base` |\n\n### Step 7: Load Prompt\n**Node:** `Get Prompt from Supabase`\n- Table: `prompts`\n- Filter: `prompt_id` + `is_active = true`\n\n### Step 8: Generate Message\n**Node:** `Claude: Generate Message`\n\nClaude receives:\n- Prompt template (from database)\n- Contact name\n- Segment\n- Investor status\n- Last notes (up to 500 chars)\n- Channel (email/sms)\n\n### Step 9: Parse Response\n**Node:** `Parse Generated Message`\n- Extracts message body\n- For email: splits `Subject:` line from body\n- Sets `success: true/false`\n\n### Step 10: Update Queue\n**Node:** `Update Queue with Message`\n- Stores generated `message_content`\n- Updates status: `pending` → `processing` (or `failed`)\n\n### Step 11: Trigger Sender\n**Node:** `Trigger Sender Workflow`\n- ⚠️ Currently disabled\n- Will call S1-05 to actually send messages\n\n---\n\n## 📊 Prompt Types Available\n\n| Prompt ID | Use Case |\n|-----------|----------|\n| `setter_hot_lead` | Urgent, high-touch message for hot prospects |\n| `setter_dormant_reengagement` | Win-back message for inactive contacts |\n| `setter_objection_response` | Value-focused content to overcome concerns |\n| `setter_update_base` | General update/nurture message |\n\n---\n\n## 📧 Email vs SMS Handling\n\n| Channel | Format |\n|---------|--------|\n| **Email** | Subject line + body (AI includes `Subject:` prefix) |\n| **SMS** | Body only (shorter, conversational) |\n\n---\n\n## ⚙️ Current Configuration\n\n| Setting | Value |\n|---------|-------|\n| Trigger | Sub-workflow (from S1-03) |\n| Batch Size | 5 items |\n| Queue Limit | 50 items per run |\n| AI Model | Claude Sonnet 4 |\n| Database | Supabase (VH Labs) |\n| Sender Workflow | ⚠️ Disabled |\n| Status | ✅ Active |\n\n---\n\n## 🔗 Workflow Chain\n```\nS1-03: Touchpoint Scheduler\n    ↓\nS1-04: Setter Message Generator ← you are here\n    ↓\nS1-05: Message Sender (disabled)\n```\n\n---\n\n## 💡 Key Benefits for Client\n\n✅ **Personalized at scale** - Every message tailored to contact context  \n✅ **Status-aware messaging** - Different tone for hot leads vs dormant  \n✅ **Channel optimization** - Proper format for email vs SMS  \n✅ **Prompt flexibility** - Update AI behavior via database (no code changes)  \n✅ **Batch safety** - Won't overwhelm APIs or timeout",
+        "height": 2800,
+        "width": 1008,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1776,
+        -400
+      ],
+      "id": "00af6373-e80b-4d89-ba0c-3d2e20053ddb",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "id": "d532dca4-1658-4e3e-9a4e-6980c8b07b36",
+          "contact_sync_id": "72debbdd-ac8f-40c4-8bf9-0ace452b1e28",
+          "ghl_contact_id": "GHL002",
+          "scheduled_for": "2026-01-28T21:00:54.086+00:00",
+          "channel": "email",
+          "message_type": "update_hot",
+          "message_content": null,
+          "template_id": null,
+          "status": "pending",
+          "processed_at": null,
+          "error_message": null,
+          "distribution_id": null,
+          "created_at": "2026-01-28T20:54:54.612905+00:00"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Queue Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Queue Items": {
+      "main": [
+        [
+          {
+            "node": "Has Queue Items?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Queue Items?": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get Contact Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Details": {
+      "main": [
+        [
+          {
+            "node": "Select Prompt by Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Prompt by Status": {
+      "main": [
+        [
+          {
+            "node": "Get Prompt from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Prompt from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Claude: Generate Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Generate Message": {
+      "main": [
+        [
+          {
+            "node": "Parse Generated Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generated Message": {
+      "main": [
+        [
+          {
+            "node": "Update Queue with Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Queue with Message": {
+      "main": [
+        [
+          {
+            "node": "Trigger Sender Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Sender Workflow": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "97ba501b-aac8-45ad-8d20-9fc20f5b93bc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "X2XlIPz4I5PfGcnB",
+  "tags": []
+}

@@ -1,0 +1,252 @@
+{
+  "name": "S3-06: SMS Queue Writer",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9f075bf2-a953-4f7b-b93f-1aa8b6014ccf",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?segment=eq.{{ $json.segment_slug }}&investor_status=neq.cold&sync_status=neq.opted_out&limit=100",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "4f4ce4d1-7b9b-4f5f-ae7c-7c3956874e97",
+      "name": "Get Contacts in Segment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -448,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has_contacts",
+              "leftValue": "={{ Array.isArray($json) ? $json.length : 0 }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b4b7f676-5551-4f23-887d-bbc42d841284",
+      "name": "Has Contacts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "e5ff8fb4-8308-4bdb-a03e-777488416e1a",
+      "name": "Process Contacts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const contact = $input.first().json;\nconst distributionPlan = $('Start').first().json;\n\n// Build SMS message from best hook or content description\nconst message = distributionPlan.best_hook || `Check out: ${distributionPlan.content_title}. ${distributionPlan.source_url}`;\n\n// Truncate to 160 characters for SMS\nconst smsMessage = message.length > 160 ? message.substring(0, 157) + '...' : message;\n\nreturn {\n  json: {\n    content_id: distributionPlan.content_id,\n    ghl_contact_id: contact.ghl_id,\n    contact_sync_id: contact.id,\n    channel: 'sms',\n    message_type: distributionPlan.is_primary ? 'primary_distribution' : 'secondary_distribution',\n    message_content: smsMessage,\n    status: 'queued',\n    segment_slug: distributionPlan.segment_slug\n  }\n};"
+      },
+      "id": "a94f0d8f-6ba5-4ad1-814f-fb34413b11a4",
+      "name": "Build SMS Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content_id\": \"{{ $json.content_id }}\",\n  \"ghl_contact_id\": \"{{ $json.ghl_contact_id }}\",\n  \"contact_sync_id\": \"{{ $json.contact_sync_id }}\",\n  \"channel\": \"sms\",\n  \"message_type\": \"{{ $json.message_type }}\",\n  \"message_content\": {{ JSON.stringify($json.message_content) }},\n  \"status\": \"queued\"\n}",
+        "options": {}
+      },
+      "id": "19dbf216-4a7a-4869-b788-a1f5a6f20ead",
+      "name": "Queue SMS for Sending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Count total queued\nconst queuedCount = $input.all().length;\n\nreturn {\n  json: {\n    segment_slug: $('Start').first().json.segment_slug,\n    content_id: $('Start').first().json.content_id,\n    sms_queued: queuedCount,\n    status: 'completed'\n  }\n};"
+      },
+      "id": "45c3967a-3b1b-400e-99c8-20afdf09f007",
+      "name": "Summarize Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d77172b2-7054-499e-92a0-f5b0e3841127",
+      "name": "No Contacts Found",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        208
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Get Contacts in Segment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contacts in Segment": {
+      "main": [
+        [
+          {
+            "node": "Has Contacts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Contacts?": {
+      "main": [
+        [
+          {
+            "node": "Process Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Contacts Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Contacts": {
+      "main": [
+        [
+          {
+            "node": "Summarize Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build SMS Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build SMS Message": {
+      "main": [
+        [
+          {
+            "node": "Queue SMS for Sending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue SMS for Sending": {
+      "main": [
+        [
+          {
+            "node": "Process Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bc93b5ac-038b-47eb-9f33-3e3f448aed7b",
+  "meta": {
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "EMkKfjbAucUeI0r3",
+  "tags": []
+}

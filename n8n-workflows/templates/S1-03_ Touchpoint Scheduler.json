@@ -1,0 +1,347 @@
+{
+  "name": "S1-03: Touchpoint Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a66ad3c1-fc2d-439a-a767-44754fda2b19",
+      "name": "Daily 8am Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -656,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/rpc/get_contacts_due_for_touchpoint",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"check_date\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "d77fcaea-f67d-4c2c-a299-d0ab49d3b0b0",
+      "name": "Get Contacts Due for Touchpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -432,
+        96
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has_contacts",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7ded1a9f-fd93-4ab7-931a-55248a410918",
+      "name": "Has Contacts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "21f3bffe-b520-4297-99d0-c8c749078828",
+      "name": "No Contacts Due",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        16,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "dfd2bd1f-f704-40aa-a890-2d1e76d3ad0c",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        16,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const contact = $input.first().json;\n\n// Determine channel based on segment preferences\nconst channelMap = {\n  're_investors': 'email',\n  'house_buyers': 'sms',\n  'bird_doggers': 'email',\n  'jv_partners': 'email',\n  'coaching_students': 'email',\n  'wholesalers': 'email',\n  'lenders': 'email',\n  'sellers': 'sms',\n  'general_leads': 'email'\n};\n\n// Determine message type based on status\nconst messageTypeMap = {\n  'hot_lead': 'update_hot',\n  'active_investor': 'update_active',\n  'passive_investor': 'update_passive',\n  'jv_potential': 'update_jv',\n  'objection_holder': 'value_content',\n  'dormant': 'reengagement',\n  'tire_kicker': 'value_content'\n};\n\nconst channel = contact.preferred_channel || channelMap[contact.segment] || 'email';\nconst messageType = messageTypeMap[contact.investor_status] || 'update_general';\n\n// Calculate scheduled time (spread throughout the day)\nconst now = new Date();\nconst randomMinutes = Math.floor(Math.random() * 240); // Spread over 4 hours\nconst scheduledFor = new Date(now.getTime() + randomMinutes * 60000);\n\nreturn {\n  json: {\n    contact_id: contact.id,\n    ghl_contact_id: contact.ghl_id,\n    first_name: contact.first_name,\n    email: contact.email,\n    phone: contact.phone,\n    segment: contact.segment,\n    investor_status: contact.investor_status,\n    latest_notes: contact.latest_notes,\n    channel: channel,\n    message_type: messageType,\n    scheduled_for: scheduledFor.toISOString()\n  }\n};"
+      },
+      "id": "ceba8653-f9c4-4ef9-8f6a-f99ec639abc6",
+      "name": "Prepare Touchpoint Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/touchpoint_queue",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ghl_contact_id\": \"{{ $json.ghl_contact_id }}\",\n  \"contact_sync_id\": \"{{ $json.contact_id }}\",\n  \"scheduled_for\": \"{{ $json.scheduled_for }}\",\n  \"channel\": \"{{ $json.channel }}\",\n  \"message_type\": \"{{ $json.message_type }}\",\n  \"status\": \"pending\"\n}",
+        "options": {}
+      },
+      "id": "c7e08d43-83f4-4726-b9be-f1bf793bfc2a",
+      "name": "Create Queue Entry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        -80
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const queueEntry = $input.first().json;\n\nreturn {\n  json: {\n    event_type: \"touchpoint_scheduled\",\n    event_category: \"system1_scheduler\",\n    contact_id: queueEntry.ghl_contact_id,\n    success: true,\n    event_data: {\n      queue_id: queueEntry.id,\n      channel: queueEntry.channel,\n      message_type: queueEntry.message_type,\n      scheduled_for: queueEntry.scheduled_for,\n      contact_sync_id: queueEntry.contact_sync_id\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -128
+      ],
+      "id": "11bac6bd-2ae7-4abb-a8ad-a6d3b7535860",
+      "name": "Prepare Analytics Data"
+    },
+    {
+      "parameters": {
+        "content": "# 📋 S1-03: Touchpoint Scheduler Workflow\n\n## 🎯 What This Workflow Does\nRuns daily to identify contacts due for follow-up based on their status frequency. Queues touchpoints, selects the right channel/message type, and triggers message generation.\n\n---\n\n## 🔄 How It Works (Step by Step)\n\n### Step 1: Daily Trigger\n**Node:** `Daily 8am Trigger`\n- Cron: `0 8 * * *` (8:00 AM daily)\n- Starts the daily touchpoint scheduling cycle\n\n### Step 2: Find Contacts Due\n**Node:** `Get Contacts Due for Touchpoint`\n- Calls Supabase RPC: `get_contacts_due_for_touchpoint`\n- Passes current date as `check_date`\n- Returns contacts whose last touchpoint + frequency days ≤ today\n\n### Step 3: Check Results\n**Node:** `Has Contacts?`\n- ❌ No contacts due → Exit (No Contacts Due)\n- ✅ Contacts found → Continue to processing\n\n### Step 4: Batch Processing\n**Node:** `Process in Batches`\n- Batch size: 10 contacts per iteration\n- Prevents API rate limits and timeouts\n\n### Step 5: Determine Channel & Message Type\n**Node:** `Prepare Touchpoint Data`\n\n**Channel Selection (by segment):**\n| Segment | Channel |\n|---------|---------|\n| `house_buyers` | SMS |\n| `sellers` | SMS |\n| All others | Email |\n\n**Message Type (by status):**\n| Status | Message Type |\n|--------|--------------|\n| `hot_lead` | `update_hot` |\n| `active_investor` | `update_active` |\n| `passive_investor` | `update_passive` |\n| `jv_potential` | `update_jv` |\n| `objection_holder` | `value_content` |\n| `dormant` | `reengagement` |\n| `tire_kicker` | `value_content` |\n\n**Scheduling:** Spreads sends over 4 hours (random 0-240 min offset)\n\n### Step 6: Create Queue Entry\n**Node:** `Create Queue Entry`\n- Table: `touchpoint_queue`\n- Status: `pending`\n\nQueue record includes:\n```json\n{\n  \"ghl_contact_id\": \"abc123\",\n  \"scheduled_for\": \"2026-01-28T09:47:00Z\",\n  \"channel\": \"email\",\n  \"message_type\": \"update_active\",\n  \"status\": \"pending\"\n}\n```\n\n### Step 7: Trigger Message Generation\n**Node:** `Trigger Message Generator`\n- Calls: `S1-04: Setter Message Generator`\n- Passes queue entry data for AI message creation\n\n### Step 8: Log Analytics\n**Nodes:** `Prepare Analytics Data` → `Log Analytics`\n- Calls: `S4-02: Analytics Logger`\n- Event: `touchpoint_scheduled`\n\n---\n\n## 📊 Touchpoint Frequency Reference\n(From S1-02 Segmentation Engine)\n\n| Status | Follow-up Every |\n|--------|-----------------|\n| `hot_lead` | 5 days |\n| `active_investor` | 10 days |\n| `jv_potential` | 14 days |\n| `passive_investor` | 21 days |\n| `objection_holder` | 30 days |\n| `tire_kicker` | 30 days |\n| `dormant` | 45 days |\n\n---\n\n## ⚙️ Current Configuration\n\n| Setting | Value |\n|---------|-------|\n| Schedule | Daily at 8:00 AM |\n| Batch Size | 10 contacts |\n| Send Window | Spread over 4 hours |\n| Database | Supabase (VH Labs) |\n| Status | ⚠️ Inactive |\n\n---\n\n## 🔗 Workflow Chain\n```\nS1-03: Touchpoint Scheduler ← you are here\n    ↓\nS1-04: Setter Message Generator\n    ↓\nS4-02: Analytics Logger\n```\n\n---\n\n## 💡 Key Benefits for Client\n\n✅ **Automated follow-up** - Never forget to reach out  \n✅ **Smart channel selection** - SMS for urgent, email for nurture  \n✅ **Natural send times** - Randomized over 4 hours (not all at once)  \n✅ **Status-based messaging** - Different content for hot vs cold leads  \n✅ **Batch processing** - Handles large contact lists efficiently",
+        "height": 2496,
+        "width": 736,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1408,
+        -304
+      ],
+      "id": "194942be-29c2-4e95-b167-2690f2ac42eb",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "X2XlIPz4I5PfGcnB",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/X2XlIPz4I5PfGcnB",
+          "cachedResultName": "VH Labs — S1-04: Setter Message Generator"
+        },
+        "options": {}
+      },
+      "id": "94b43ec1-4236-4b01-a840-88883f381e6b",
+      "name": "S1-04 Setter Message Generator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        688,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "WQ6fyZOn5BOV8CCN",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/WQ6fyZOn5BOV8CCN",
+          "cachedResultName": "VH Labs — S4-02 Analytics Logger"
+        },
+        "options": {}
+      },
+      "id": "fa7d9ba5-8152-4f91-97e2-f36a5e87d480",
+      "name": "S4-02 Analytics Logger",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        912,
+        -128
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily 8am Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Contacts Due for Touchpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contacts Due for Touchpoint": {
+      "main": [
+        [
+          {
+            "node": "Has Contacts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Contacts?": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Contacts Due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Prepare Touchpoint Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Touchpoint Data": {
+      "main": [
+        [
+          {
+            "node": "Create Queue Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Queue Entry": {
+      "main": [
+        [
+          {
+            "node": "Prepare Analytics Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "S1-04 Setter Message Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Analytics Data": {
+      "main": [
+        [
+          {
+            "node": "S4-02 Analytics Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S1-04 Setter Message Generator": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S4-02 Analytics Logger": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0fdcb7bf-4d01-4913-8f54-56e4a55bbbe8",
+  "meta": {
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "IltfXPnNdnUaZyQw",
+  "tags": []
+}

@@ -1,5 +1,5 @@
 {
-  "name": "S3-03 Email Sender",
+  "name": "S3-03: Email Sender",
   "nodes": [
     {
       "parameters": {
@@ -12,36 +12,36 @@
           ]
         }
       },
-      "id": "cron",
+      "id": "c9107ffc-4f5a-49fe-b766-0f6465c31d91",
       "name": "Every 10 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        -1536,
+        208
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?status=eq.queued&channel=eq.email&order=created_at.asc&limit=50",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "options": {}
       },
-      "id": "get_queued",
+      "id": "25c80590-7ee0-4e22-bea7-b5b5da2caea7",
       "name": "Get Queued Emails",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300]
+      "position": [
+        -1312,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
@@ -49,12 +49,13 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
               "id": "has_emails",
-              "leftValue": "={{ $json.length }}",
+              "leftValue": "={{ $input.all().length }}",
               "rightValue": 0,
               "operator": {
                 "type": "number",
@@ -66,62 +67,78 @@
         },
         "options": {}
       },
-      "id": "has_emails",
+      "id": "4a138509-ebcf-4f88-a01e-24edd4848bf2",
       "name": "Has Emails to Send?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        -1104,
+        208
+      ]
     },
     {
       "parameters": {
         "batchSize": 10,
         "options": {}
       },
-      "id": "batch_emails",
+      "id": "90a4f363-df92-4df2-b3cc-19e2c9e119de",
       "name": "Process in Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [900, 200]
+      "position": [
+        -880,
+        112
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://rest.gohighlevel.com/v1/contacts/{{ $json.ghl_contact_id }}/campaigns/emails",
+        "url": "=https://services.leadconnectorhq.com/conversations/messages",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer YOUR_GHL_API_KEY_HERE"
+              "value": "=Bearer pit-c32c4d2c-bda8-4e9a-8df1-14c237e11351"
             },
             {
               "name": "Content-Type",
               "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"emailTemplateId\": \"custom\",\n  \"subject\": {{ JSON.stringify($json.subject) }},\n  \"html\": {{ JSON.stringify('<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">' + $json.message_content.replace(/\\n/g, '<br>') + '</div>') }},\n  \"from\": \"{{ $vars.GHL_FROM_EMAIL || 'noreply@example.com' }}\",\n  \"fromName\": \"{{ $vars.GHL_FROM_NAME || 'Your Team' }}\"\n}",
+        "jsonBody": "={\n  \"type\": \"Email\",\n  \"contactId\": \"{{ $json.ghl_contact_id }}\",\n  \"subject\": {{ JSON.stringify($json.subject) }},\n  \"html\": {{ JSON.stringify('<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">' + $json.message_content.replace(/\\n/g, '<br>') + '</div>') }}\n}",
         "options": {
           "timeout": 30000
         }
       },
-      "id": "send_via_ghl",
+      "id": "16dc54d2-1f94-454e-ad1c-5fc4dd517c79",
       "name": "Send via GHL",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 200]
+      "position": [
+        -640,
+        128
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst distribution = $('Process in Batches').first().json;\n\n// Check if send was successful\nconst success = response.id || response.success || !response.error;\n\nreturn {\n  json: {\n    distribution_id: distribution.id,\n    ghl_message_id: response.id || null,\n    success: success,\n    error: response.error || response.message || null\n  }\n};"
+        "jsCode": "const response = $input.first().json;\nconst distribution = $('Process in Batches').first().json;\n\n// Check if send was successful\nconst messageId = response.messageId || response.emailMessageId || null;\nconst success = !!messageId || response.msg === 'Email queued successfully.' || !response.error;\n\nreturn {\n  json: {\n    distribution_id: distribution.id,\n    ghl_message_id: messageId,\n    success: success,\n    error: response.error || response.message || null\n  }\n};"
       },
-      "id": "check_result",
+      "id": "14f7294b-75f4-47f4-a039-e9a3d0067ec0",
       "name": "Check Send Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 200]
+      "position": [
+        -448,
+        112
+      ]
     },
     {
       "parameters": {
@@ -146,30 +163,27 @@
         },
         "options": {}
       },
-      "id": "check_success",
+      "id": "6fb2680f-99ff-4bdf-8f2b-c5f4b8a5339c",
       "name": "Send Success?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1560, 200]
+      "position": [
+        -224,
+        112
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?id=eq.{{ $json.distribution_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
+              "name": "Prefer",
+              "value": "return=representation"
             }
           ]
         },
@@ -178,30 +192,33 @@
         "jsonBody": "={\n  \"status\": \"sent\",\n  \"sent_at\": \"{{ new Date().toISOString() }}\",\n  \"external_id\": {{ $json.ghl_message_id ? '\"' + $json.ghl_message_id + '\"' : 'null' }}\n}",
         "options": {}
       },
-      "id": "update_sent",
+      "id": "18f3b043-43a1-4a80-83ac-78ff7b766c89",
       "name": "Update Status: Sent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 100]
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?id=eq.{{ $json.distribution_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
+              "name": "Prefer",
+              "value": "return=representation"
             }
           ]
         },
@@ -210,39 +227,72 @@
         "jsonBody": "={\n  \"status\": \"failed\",\n  \"error_message\": {{ JSON.stringify($json.error || 'Unknown error') }}\n}",
         "options": {}
       },
-      "id": "update_failed",
+      "id": "621744f3-0e66-490e-910a-231b331b9974",
       "name": "Update Status: Failed",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 300]
+      "position": [
+        0,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
         "jsCode": "// Add delay between batches to avoid rate limits\nawait new Promise(resolve => setTimeout(resolve, 2000));\n\nreturn $input.all();"
       },
-      "id": "rate_limit_delay",
+      "id": "cd1a5159-baf5-4969-9cb9-31804e5f5344",
       "name": "Rate Limit Delay",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 200]
+      "position": [
+        224,
+        112
+      ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
+          "value": "WQ6fyZOn5BOV8CCN",
           "mode": "list",
-          "value": ""
+          "cachedResultUrl": "/workflow/WQ6fyZOn5BOV8CCN",
+          "cachedResultName": "VH Labs — S4-02 Analytics Logger"
         },
         "options": {}
       },
-      "id": "log_analytics",
+      "id": "2e732f63-79cc-4e85-a834-98c4f04e9bef",
       "name": "Log Analytics",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
-      "position": [2220, 200],
-      "disabled": true
+      "position": [
+        448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 📤 S3-03: Email Sender\n\n### 🎯 Purpose\nPolls the distribution queue every 10 minutes and sends queued emails via GoHighLevel API.\n\n---\n\n### 🔄 Flow\n\n| Step | Node | Action |\n|------|------|--------|\n| 1 | Every 10 Minutes | Schedule trigger |\n| 2 | Get Queued Emails | Fetches `distributions` where `status=queued` & `channel=email` (limit 50) |\n| 3 | Has Emails to Send? | Checks if queue has items |\n| 4 | Process in Batches | Batches of 10 |\n| 5 | Send via GHL | POST to GHL email endpoint |\n| 6 | Check Send Result | Evaluates API response |\n| 7 | Send Success? | Routes success vs failure |\n| 8a | Update Status: Sent | Sets `status=sent`, `sent_at`, `external_id` |\n| 8b | Update Status: Failed | Sets `status=failed`, `error_message` |\n| 9 | Rate Limit Delay | 2 second pause between batches |\n| 10 | Log Analytics | *(disabled)* |\n\n---\n\n### 📧 GHL Email Format\n\n**Endpoint:** `POST /v1/contacts/{ghl_contact_id}/campaigns/emails`\n\n**Payload:**\n```json\n{\n  \"emailTemplateId\": \"custom\",\n  \"subject\": \"...\",\n  \"html\": \"<div>...</div>\",\n  \"from\": \"noreply@example.com\",\n  \"fromName\": \"Your Team\"\n}\n```\n\n- Body content is wrapped in `<div>` with Arial font\n- Newlines (`\\n`) converted to `<br>`\n\n---\n\n### 🗄️ Database\n\n| Table | Operation |\n|-------|-----------|\n| `distributions` | Read queued → Update sent/failed |\n\n**Status transitions:**\n- `queued` → `sent` (on success)\n- `queued` → `failed` (on error)\n\n**Updated fields on success:**\n- `status`: `\"sent\"`\n- `sent_at`: timestamp\n- `external_id`: GHL message ID\n\n**Updated fields on failure:**\n- `status`: `\"failed\"`\n- `error_message`: error details\n\n---\n\n### ⚡ Rate Limiting\n\n- **Batch size:** 10 emails\n- **Delay between batches:** 2 seconds\n- **Max per run:** 50 emails\n\n---\n\n### 🔗 Workflow Chain\n```\nS3-02 (Email Generator) \n    → queues to distributions\n        → S3-03 (Email Sender) polls & sends\n```\n\n---\n\n### ⚠️ Notes\n- Analytics logging is **disabled**\n- Uses workflow variables for `GHL_FROM_EMAIL` and `GHL_FROM_NAME`\n\n---\n\n### ❌ Status: **Inactive**",
+        "height": 1424,
+        "width": 640,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2256,
+        -240
+      ],
+      "id": "863c71c9-9b04-488e-91ac-d1a74fd149bf",
+      "name": "Sticky Note"
     }
   ],
+  "pinData": {},
   "connections": {
     "Every 10 Minutes": {
       "main": [
@@ -274,12 +324,12 @@
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "Process in Batches": {
       "main": [
+        [],
         [
           {
             "node": "Send via GHL",
@@ -363,11 +413,14 @@
       ]
     }
   },
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
+  "versionId": "0f07ce89-226d-4b08-8511-4ee9c9931613",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
-  "tags": ["Austin CG", "System 3", "Distribution"]
+  "id": "8BqKcWCrM06NbSYQ",
+  "tags": []
 }

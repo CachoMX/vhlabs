@@ -1,0 +1,687 @@
+{
+  "name": "S1-01: Note Parser",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ghl-note-update",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "752a4ddb-c7b6-4634-81fc-ede6a3194208",
+      "name": "GHL Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        272
+      ],
+      "webhookId": "ghl-note-update"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has_contact",
+              "leftValue": "={{ $json.body?.contact_id || $json.body?.contactId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0b00d12d-955f-432d-8344-1e054100b2df",
+      "name": "Has Contact ID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "4324d1eb-7e89-494d-a792-0407f1a0a557",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1312,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.body?.contact_id || $json.body?.contactId }}\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer pit-c32c4d2c-bda8-4e9a-8df1-14c237e11351"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d9ce9bd9-5ded-4a25-9b70-9c0d7418b10d",
+      "name": "Get Contact from GHL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1312,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has_notes",
+              "leftValue": "=={{ (($node[\"Get Contact Notes\"].json.notes || []).length) > 0 }}\n",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f8c69600-2529-489e-b327-d35347e66c1d",
+      "name": "Has Notes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "25b5844d-936a-4155-bdec-c260560495e6",
+      "name": "Skip - No Notes",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.note_parser&is_active=eq.true&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=sb_publishable_2Jn95SbK5Un7uWOvY25vOg_sbqkI3Ou"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer sb_publishable_2Jn95SbK5Un7uWOvY25vOg_sbqkI3Ou"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b4644c6f-5647-488b-b182-ca3ffb4e0cfe",
+      "name": "Get Note Parser Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -640,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: \"claude-sonnet-4-20250514\",\n  max_tokens: 1024,\n  messages: [\n    {\n      role: \"user\",\n      content:\n        (\n          ($node[\"Get Note Parser Prompt\"].json.content || \"\")\n          + \"\\n\\nOutput rules:\\n\"\n          + \"- Return ONLY a valid JSON object.\\n\"\n          + \"- Do not wrap the JSON in ``` or any other formatting.\\n\"\n          + \"- No extra text.\\n\"\n        )\n        + \"\\n\\nCall Notes:\\n\"\n        + (\n          ($node[\"Get Contact Notes\"].json.notes || [])\n            .map(n => n.bodyText || \"\")\n            .filter(t => t.trim().length)\n            .join(\"\\n---\\n\")\n        )\n    }\n  ]\n}) }}\n",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "3dafb410-228a-46ac-9c14-1a8e44a806c4",
+      "name": "Claude: Parse Notes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -416,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// En n8n Code v2: usa .json (no .first())\nconst contactNode = $node[\"Get Contact from GHL\"].json;\nconst contact = contactNode.contact ?? contactNode;\n\ntry {\n  // Anthropic: el texto viene en response.content[0].text\n  const text = response.content?.[0]?.text ?? \"\";\n\n  // Extract JSON from response (por si viniera envuelto en ```json)\n  let jsonStr = text;\n  if (text.includes(\"```json\")) {\n    jsonStr = text.split(\"```json\")[1].split(\"```\")[0];\n  } else if (text.includes(\"```\")) {\n    jsonStr = text.split(\"```\")[1].split(\"```\")[0];\n  }\n\n  const parsed = JSON.parse(jsonStr.trim());\n\n  return {\n    json: {\n      contact_id: contact.id,\n      ghl_contact: contact,\n      parsed_notes: parsed,\n      intent_signals: parsed.intent_signals || [],\n      objections: parsed.objections || [],\n      timeline: parsed.timeline,\n      sentiment: parsed.sentiment,\n      recommended_status: parsed.recommended_status,\n      follow_up_priority: parsed.follow_up_priority,\n      key_quotes: parsed.key_quotes || [],\n      current_status: contact.customField?.investor_status,\n      current_segment: contact.customField?.segment,\n      success: true,\n    },\n  };\n} catch (error) {\n  return {\n    json: {\n      contact_id: contact?.id,\n      success: false,\n      error: error.message,\n      raw_response: response.content?.[0]?.text,\n    },\n  };\n}\n"
+      },
+      "id": "15548f27-6a40-4a3b-969c-5073f822ef41",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "success",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a11f9ebf-3550-402a-b9b9-c8641e084037",
+      "name": "Parse Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?on_conflict=ghl_id\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "=sb_publishable_2Jn95SbK5Un7uWOvY25vOg_sbqkI3Ou"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer sb_publishable_2Jn95SbK5Un7uWOvY25vOg_sbqkI3Ou"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \n\"ghl_id\": \"{{ $json.contact_id }}\", \n\"email\": \"{{ $json.ghl_contact.email }}\", \n\"phone\": \"{{ $json.ghl_contact.phone }}\", \n\"first_name\": \"{{ $json.ghl_contact.firstName }}\", \n\"last_name\": \"{{ $json.ghl_contact.lastName }}\", \n\"investor_status\": \"{{ $json.recommended_status }}\", \n\"latest_notes\": {{ JSON.stringify($json.ghl_contact.notes || '').substring(0, 1000) }}, \n\"parsed_notes\": {{ JSON.stringify($json.parsed_notes) }}, \n\"last_synced_at\": \"{{ new Date().toISOString() }}\" \n}",
+        "options": {}
+      },
+      "id": "feeb88c1-c2ba-4056-ba19-020b455bbd53",
+      "name": "Upsert to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        256,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6d22168e-f56b-4da8-b281-0eb2e9147815",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contact.id }}/notes\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer pit-c32c4d2c-bda8-4e9a-8df1-14c237e11351"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "029565f2-5146-4116-bdde-f805acee701b",
+      "name": "Get Contact Notes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1088,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 📋 S1-01: Note Parser Workflow\n\n## 🎯 What This Workflow Does\nExtracts structured intelligence from CRM call notes using AI. Converts free-form notes into actionable data: intent signals, objections, sentiment, and recommended follow-up status.\n\n---\n\n## 🔄 How It Works (Step by Step)\n\n### Step 1: Receive Trigger\n**Node:** `GHL Webhook`\n- Listens for note updates from GoHighLevel\n- Webhook: `/webhook/ghl-note-update`\n- Triggered by GHL workflow \"S1-01 - Send Notes to N8N\"\n\n### Step 2: Validate Contact\n**Node:** `Has Contact ID?`\n- Checks for valid contact_id in payload\n- ❌ Missing → Error Response\n- ✅ Present → Continue\n\n### Step 3: Fetch Contact Data\n**Nodes:** `Get Contact from GHL` → `Get Contact Notes`\n\n| API Call | Data Retrieved |\n|----------|----------------|\n| `/contacts/{id}` | Full contact profile (name, email, phone, custom fields) |\n| `/contacts/{id}/notes` | All notes attached to contact |\n\n### Step 4: Check for Notes\n**Node:** `Has Notes?`\n- If no notes exist → Skip processing\n- If notes exist → Continue to AI\n\n### Step 5: AI Note Analysis\n**Nodes:** `Get Note Parser Prompt` → `Claude: Parse Notes`\n\nClaude receives:\n- Parser prompt from Supabase (`note_parser`)\n- All contact notes joined with `---` separator\n\nClaude extracts and returns:\n```json\n{\n  \"intent_signals\": [\"interested in passive income\", \"asked about returns\"],\n  \"objections\": [\"concerned about liquidity\", \"wants to talk to spouse\"],\n  \"timeline\": \"Q2 2026\",\n  \"sentiment\": \"positive\",\n  \"recommended_status\": \"warm_lead\",\n  \"follow_up_priority\": \"high\",\n  \"key_quotes\": [\"I've been looking for something like this\"]\n}\n```\n\n### Step 6: Parse & Validate\n**Node:** `Parse AI Response`\n- Extracts JSON from Claude response\n- Handles markdown code blocks if present\n- Merges with contact data\n- Sets `success: true/false`\n\n### Step 7: Save & Continue\n**Node:** `Parse Success?`\n\n| Result | Action |\n|--------|--------|\n| ✅ Success | Upsert to Supabase + Trigger Segmentation Engine |\n| ❌ Failure | Parse Error Response |\n\n### Step 8: Store Data\n**Node:** `Upsert to Supabase`\n- Table: `contacts_sync`\n- Uses `on_conflict=ghl_id` (merge duplicates)\n\nData saved:\n- Contact info (name, email, phone)\n- `investor_status` → from AI recommendation\n- `parsed_notes` → full structured analysis\n- `last_synced_at` → timestamp\n\n### Step 9: Trigger Next Workflow\n**Node:** `Call Segmentation Engine`\n- Calls: `S1-02: Segmentation Engine`\n- Async (doesn't wait for completion)\n- Passes contact data for segment assignment\n\n---\n\n## 📊 AI Extracted Fields\n\n| Field | Description | Example |\n|-------|-------------|---------|\n| `intent_signals` | Buying/interest indicators | \"asked about ROI\" |\n| `objections` | Concerns or blockers | \"needs spouse approval\" |\n| `timeline` | When they might act | \"Q2 2026\", \"6 months\" |\n| `sentiment` | Overall tone | positive, neutral, negative |\n| `recommended_status` | Suggested CRM status | warm_lead, hot_lead |\n| `follow_up_priority` | Urgency level | high, medium, low |\n| `key_quotes` | Important verbatim quotes | Direct statements |\n\n---\n\n## ⚙️ Current Configuration\n\n| Setting | Value |\n|---------|-------|\n| Webhook URL | `/webhook/ghl-note-update` |\n| AI Model | Claude Sonnet 4 |\n| Database | Supabase (VH Labs) |\n| GHL Location | Wyohouses |\n| Status | ✅ Active |\n\n---\n\n## 🔗 Workflow Chain\n```\nS1-01: Note Parser\n    ↓\nS1-02: Segmentation Engine (auto-triggered)\n```\n\n---\n\n## 💡 Key Benefits for Client\n\n✅ **Structured data from unstructured notes** - AI extracts insights automatically  \n✅ **Consistent lead scoring** - Removes human bias from status assignment  \n✅ **Objection tracking** - Know what's blocking deals  \n✅ **Timeline visibility** - Understand when contacts might convert  \n✅ **Auto-segmentation** - Triggers next workflow for smart grouping",
+        "height": 2640,
+        "width": 1024,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3760,
+        -416
+      ],
+      "id": "ec74f930-96ec-46d6-b0eb-3d5bf6999b9b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d593d9a9-7b40-47b7-9d03-1e7667e9e55e",
+      "name": "Error Final Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        704,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const errorData = $input.first().json;\n\nreturn {\n  json: {\n    workflow_name: \"S1-01: Note Parser\",\n    error_type: \"claude_parse_failed\",\n    error_message: errorData.error || \"Unknown parsing error\",\n    context: {\n      contact_id: errorData.contact_id,\n      raw_response: errorData.raw_response || \"\"\n    }\n  }\n};"
+      },
+      "id": "3e4711ab-232f-4192-8c61-9966e7a1925b",
+      "name": "Parse Error Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "bU48LPXDnctdrE0z",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/bU48LPXDnctdrE0z",
+          "cachedResultName": "VH Labs — S1-02: Segmentation Engine"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "9a7d23b0-e1ee-4771-947f-54ff744921c0",
+      "name": "S1-02: Segmentation Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        256,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "w2OYrel3qCHq1xZD",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/w2OYrel3qCHq1xZD",
+          "cachedResultName": "VH Labs — S4-01 Error Logger"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        480,
+        320
+      ],
+      "id": "0c89534a-f42d-43dd-8b16-a1e4259d50db",
+      "name": "S4-01 Error Logger"
+    }
+  ],
+  "pinData": {
+    "GHL Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "cqmarketing.app.n8n.cloud",
+            "user-agent": "axios/1.13.2",
+            "content-length": "850",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "34.45.58.6",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "US",
+            "cf-ray": "9c093c6582c90125-ORD",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "traceparent": "00-11a162372529b0bc2bfdb63ebbbbd96a-fff7d77f1358a77d-00",
+            "x-forwarded-for": "34.45.58.6, 172.70.179.73",
+            "x-forwarded-host": "cqmarketing.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-19-6d7b847dcf-6s876",
+            "x-is-trusted": "yes",
+            "x-real-ip": "34.45.58.6"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "contact_id": "7JJJwdKm73qpWT3c9Pdz",
+            "first_name": "Carlos",
+            "last_name": "Aragon",
+            "full_name": "Carlos Aragon",
+            "email": "caragon@me.com",
+            "phone": "+12144995629",
+            "tags": "",
+            "country": "US",
+            "date_created": "2026-01-19T20:53:40.292Z",
+            "full_address": "",
+            "contact_type": "lead",
+            "location": {
+              "name": "Wyohouses",
+              "address": "621 South 2nd Street",
+              "city": "Laramie",
+              "state": "WY",
+              "country": "US",
+              "postalCode": "82070",
+              "fullAddress": "621 South 2nd Street, Laramie WY 82070",
+              "id": "f2G0nagaIaxhq7ZJr29z"
+            },
+            "workflow": {
+              "id": "e6c762d0-15c7-41b9-bd2d-4ca9ee8c6c3d",
+              "name": "S1-01 - Send Notes to N8N"
+            },
+            "triggerData": {},
+            "contact": {
+              "attributionSource": {
+                "sessionSource": "CRM UI",
+                "medium": "manual",
+                "mediumId": null
+              },
+              "lastAttributionSource": {}
+            },
+            "attributionSource": {},
+            "customData": {
+              "contact_id": "7JJJwdKm73qpWT3c9Pdz",
+              "contactId": "7JJJwdKm73qpWT3c9Pdz",
+              "notes": "",
+              "notes2": "",
+              "noted3": ""
+            }
+          },
+          "webhookUrl": "https://cqmarketing.app.n8n.cloud/webhook-test/ghl-note-update",
+          "executionMode": "test"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "GHL Webhook": {
+      "main": [
+        [
+          {
+            "node": "Has Contact ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Contact ID?": {
+      "main": [
+        [
+          {
+            "node": "Get Contact from GHL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact from GHL": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Notes?": {
+      "main": [
+        [
+          {
+            "node": "Get Note Parser Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - No Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Note Parser Prompt": {
+      "main": [
+        [
+          {
+            "node": "Claude: Parse Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Parse Notes": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Parse Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Success?": {
+      "main": [
+        [
+          {
+            "node": "Upsert to Supabase",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "S1-02: Segmentation Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert to Supabase": {
+      "main": [
+        []
+      ]
+    },
+    "Get Contact Notes": {
+      "main": [
+        [
+          {
+            "node": "Has Notes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Error Response": {
+      "main": [
+        [
+          {
+            "node": "S4-01 Error Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S1-02: Segmentation Engine": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S4-01 Error Logger": {
+      "main": [
+        [
+          {
+            "node": "Error Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e1e9107c-9e8e-4f03-9e70-9f88c7894db7",
+  "meta": {
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "Q9BiROl80xVeICTv",
+  "tags": []
+}

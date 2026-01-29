@@ -1,0 +1,570 @@
+{
+  "name": "S3-01: Distribution Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "distribute-content",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "9a193fa4-75b9-495c-98a2-7acd0333c863",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1552,
+        720
+      ],
+      "webhookId": "distribute-content"
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}&select=*",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "57b16522-648f-4ed7-9e7a-615170783c29",
+      "name": "Get Content Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1312,
+        704
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is_ready",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9500762e-108f-4d22-8bc4-c5fb88f61c0e",
+      "name": "Is Content Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "8e7674cc-d2ad-4e79-a696-398e01f75b56",
+      "name": "Not Ready Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -864,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/segments?slug=in.({{ $json.audiences?.join(',') || 'general_leads' }})\n",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "737f82d7-69e5-4c9b-b852-afc64caa8a6d",
+      "name": "Get Routing Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -864,
+        576
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const contentData = $('Get Content Record').first().json;\nconst content = Array.isArray(contentData) ? contentData[0] : contentData;\n\n// Get ALL segments from input, not just first\nconst allSegments = $input.all().map(item => item.json);\n\n// Build distribution plan for each audience\nconst distributionPlan = [];\n\nfor (const segment of allSegments) {\n  // Primary channel distribution\n  if (segment.channel_primary) {\n    distributionPlan.push({\n      content_id: content.id,\n      content_title: content.title,\n      source_url: content.source_url,\n      hooks: content.hooks,\n      best_hook: content.hooks?.[0]?.text || content.ai_metadata?.teaser || '',\n      segment_slug: segment.slug,\n      segment_name: segment.name,\n      channel: segment.channel_primary,\n      is_primary: true,\n      priority: content.priority\n    });\n  }\n  \n  // Secondary channel distribution (if content is featured or high priority)\n  if (segment.channel_secondary && (content.is_featured || content.priority === 'high')) {\n    distributionPlan.push({\n      content_id: content.id,\n      content_title: content.title,\n      source_url: content.source_url,\n      hooks: content.hooks,\n      best_hook: content.hooks?.[0]?.text || content.ai_metadata?.teaser || '',\n      segment_slug: segment.slug,\n      segment_name: segment.name,\n      channel: segment.channel_secondary,\n      is_primary: false,\n      priority: content.priority\n    });\n  }\n}\n\nreturn distributionPlan.map(plan => ({ json: plan }));"
+      },
+      "id": "a52c9049-0f38-4fe2-b32d-27801bcfdb94",
+      "name": "Build Distribution Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.channel }}",
+                    "rightValue": "email",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8bc0c6b6-7b62-4e9e-a23b-359493bd9dd5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "email"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.channel }}",
+                    "rightValue": "sms",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "78ee0b8d-d716-4017-914d-c30c2a9f2ec4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sms"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.channel }}",
+                    "rightValue": "instagram",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "dbe00e1d-9440-4bb4-8233-0bc017ae9b2a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "instagram"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "df3672aa-8821-4b4b-9187-a44d1ff79df4",
+      "name": "Route by Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.1,
+      "position": [
+        -192,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $('Get Content Record').first().json[0]?.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"distributed\"\n}",
+        "options": {}
+      },
+      "id": "8c91a4b1-78a6-410f-acde-8cb822aa1be9",
+      "name": "Update Content Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -192,
+        16
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6ad551d0-0d60-4835-9c77-63d79f672514",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "1efa823a-9439-46fd-8787-990706a26269",
+      "name": "Process Distributions",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -416,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 📋 S3-01: Distribution Router\n\n### 🎯 Purpose\nRoutes approved content to the appropriate distribution channels (email, SMS, Instagram) based on audience segments and routing rules.\n\n---\n\n### 🔄 Flow\n\n| Step | Node | Action |\n|------|------|--------|\n| 1 | Webhook | Receives `content_id` via POST `/distribute-content` |\n| 2 | Get Content Record | Fetches content from Supabase `contents` table |\n| 3 | Is Content Ready? | Checks if `status = \"ready\"` |\n| 4 | Get Routing Rules | Fetches segment configs based on `audiences` |\n| 5 | Build Distribution Plan | Creates distribution items per segment/channel |\n| 6 | Process Distributions | Batches items (5 at a time) |\n| 7 | Route by Channel | Switch → email / sms / instagram |\n| 8 | Trigger Sub-workflow | Calls appropriate sender workflow |\n| 9 | Update Content Status | Sets status → `\"distributed\"` |\n\n---\n\n### 📡 Channel Routing\n\n| Channel | Sub-workflow Triggered |\n|---------|----------------------|\n| `email` | S3-02: Email Generator |\n| `sms` | S3-06: SMS Queue Writer |\n| `instagram` | S3-04: Instagram Poster |\n\n---\n\n### ⚙️ Distribution Plan Logic\n```\nFor each segment:\n├── Always: Add primary channel distribution\n└── If featured OR high priority:\n    └── Also add secondary channel distribution\n```\n\n**Output per item:**\n- `content_id`, `content_title`, `source_url`\n- `hooks`, `best_hook`\n- `segment_slug`, `segment_name`\n- `channel`, `is_primary`, `priority`\n\n---\n\n### 🗄️ Database\n\n| Table | Operation |\n|-------|-----------|\n| `contents` | Read → Update status |\n| `segments` | Read routing rules |\n\n---\n\n### 🔗 Webhook\n```\nPOST /webhook/distribute-content\nBody: { \"content_id\": \"uuid\" }\n```\n\n---\n\n### ✅ Status: **Active**",
+        "height": 1376,
+        "width": 672,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2304,
+        -96
+      ],
+      "id": "87cc4473-e446-4aa4-bc5b-778fcf4eb0cc",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "5oqnTqIEQrG73Jql",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/5oqnTqIEQrG73Jql",
+          "cachedResultName": "VH Labs — S3-02: Email Generator"
+        },
+        "options": {}
+      },
+      "id": "b9df45e7-365d-4ffa-9664-87cabf87a0bd",
+      "name": "S3-02: Email Generator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "EMkKfjbAucUeI0r3",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/EMkKfjbAucUeI0r3",
+          "cachedResultName": "VH Labs — S3-06: SMS Queue Writer"
+        },
+        "options": {}
+      },
+      "id": "580341cb-2dca-4d2c-aadf-a44754203402",
+      "name": "S3-06: SMS Queue Writer",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "u9i9kAQswGmeCBTJ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/u9i9kAQswGmeCBTJ",
+          "cachedResultName": "VH Labs — S3-04: Instagram Poster"
+        },
+        "options": {}
+      },
+      "id": "a12c6733-e2a4-4309-a847-839e38a00f39",
+      "name": "S3-04: Instagram Poster",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1536,
+        480
+      ],
+      "id": "f424278f-b2c2-484c-a796-8de82179b92b",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {
+    "Manual Trigger": [
+      {
+        "json": {
+          "content_id": "123e4567-e89b-12d3-a456-426614174000",
+          "content_type": "video",
+          "title": "5 Creative Financing Strategies for Real Estate Investors",
+          "teaser": "Learn how to acquire properties with little to no money down using these proven techniques.",
+          "primary_audience": "re_investors",
+          "secondary_audiences": [
+            "jv_partners",
+            "coaching_students"
+          ],
+          "distribution_channels": [
+            "email",
+            "social"
+          ],
+          "content_url": "https://example.com/content/creative-financing-video",
+          "hooks": [
+            {
+              "text": "You don't need $100k to start investing in real estate",
+              "hook_type": "insight"
+            },
+            {
+              "text": "Here's how I bought my first 3 properties with $0 down",
+              "hook_type": "story"
+            }
+          ],
+          "created_at": "2026-01-28T23:00:00.000Z"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Content Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Content Record": {
+      "main": [
+        [
+          {
+            "node": "Is Content Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Content Ready?": {
+      "main": [
+        [
+          {
+            "node": "Get Routing Rules",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not Ready Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Routing Rules": {
+      "main": [
+        [
+          {
+            "node": "Build Distribution Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Distribution Plan": {
+      "main": [
+        [
+          {
+            "node": "Process Distributions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Channel": {
+      "main": [
+        [
+          {
+            "node": "S3-02: Email Generator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "S3-06: SMS Queue Writer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "S3-04: Instagram Poster",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Distributions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Content Status": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Distributions": {
+      "main": [
+        [
+          {
+            "node": "Update Content Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route by Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3-02: Email Generator": {
+      "main": [
+        [
+          {
+            "node": "Process Distributions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3-06: SMS Queue Writer": {
+      "main": [
+        [
+          {
+            "node": "Process Distributions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3-04: Instagram Poster": {
+      "main": [
+        [
+          {
+            "node": "Process Distributions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get Content Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ec6aa26c-9a50-4479-b81c-3f773ae3f671",
+  "meta": {
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "hXNbeBWOGyYbcdww",
+  "tags": []
+}

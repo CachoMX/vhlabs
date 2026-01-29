@@ -1,0 +1,639 @@
+{
+  "name": "S1-06: Response Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ghl-reply",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1eed7df7-8024-4b57-95b7-654ff62a4145",
+      "name": "GHL Reply Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2208,
+        416
+      ],
+      "webhookId": "ghl-reply"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\n// Extract relevant data from GHL webhook\nconst contactId = body.contactId || body.contact_id;\nconst message = body.messageBody || body.message || body.body || body.text;\nconst channel = body.messageSubject ? 'email' : 'sms';\n\nif (!message || !contactId) {\n  return { json: { skip: true, reason: 'Missing required data' } };\n}\n\nreturn {\n  json: {\n    skip: false,\n    contact_id: contactId,\n    reply_text: message,\n    channel: channel,\n    received_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "85dea23d-bf9b-42c1-adb3-30d7f78f998b",
+      "name": "Parse Webhook Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1984,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "should_skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5ef54e4e-b512-46b0-b6a5-1a26ecd85366",
+      "name": "Should Skip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?ghl_contact_id=eq.{{ $('Parse Webhook Data').first().json.contact_id }}&order=sent_at.desc&limit=1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "c3eac653-d5b8-485c-9d5b-18228ccc8c63",
+      "name": "Get Last Distribution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1536,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?ghl_id=eq.{{ $('Parse Webhook Data').first().json.contact_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "33cae72e-b702-4c2a-97f8-9be2e6d34c35",
+      "name": "Get Contact Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1312,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.response_classifier&is_active=eq.true&limit=1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "6f25077b-62dc-4d09-a14f-bbfc73334f01",
+      "name": "Get Classifier Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1088,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\n        $('Get Classifier Prompt').first().json?.content + \n        '\\n\\nOriginal message we sent: ' + ($('Get Last Distribution').first().json?.message_content || 'Unknown') +\n        '\\nTheir reply: ' + $('Parse Webhook Data').first().json.reply_text +\n        '\\nCurrent status: ' + ($('Get Contact Info').first().json?.investor_status || 'unknown')\n      ) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "154f3d20-623f-47f2-90f8-f200f7205562",
+      "name": "Claude: Classify Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -864,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst replyData = $('Parse Webhook Data').first().json;\nconst contact = $('Get Contact Info').first().json;\nconst distribution = $('Get Last Distribution').first().json;\n\ntry {\n  const text = response.content[0].text;\n  \n  // Extract JSON from response\n  let jsonStr = text;\n  if (text.includes('```json')) {\n    jsonStr = text.split('```json')[1].split('```')[0];\n  } else if (text.includes('```')) {\n    jsonStr = text.split('```')[1].split('```')[0];\n  }\n  \n  const classification = JSON.parse(jsonStr.trim());\n  \n  return {\n    json: {\n      contact_id: replyData.contact_id,\n      reply_text: replyData.reply_text,\n      classification: classification,\n      response_type: classification.response_type,\n      sentiment: classification.sentiment,\n      urgency: classification.urgency,\n      suggested_action: classification.suggested_action,\n      new_status: classification.new_status,\n      distribution_id: distribution.id,\n      current_status: contact.investor_status || 'unknown',\n      success: true\n    }\n  };\n} catch (error) {\n  return {\n    json: {\n      contact_id: replyData.contact_id,\n      reply_text: replyData.reply_text,\n      success: false,\n      error: error.message,\n      suggested_action: 'escalate_human',\n      distribution_id: null\n    }\n  };\n}"
+      },
+      "id": "f98cb4c0-3abc-4ee6-a30d-348c47a228d4",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions?id=eq.{{ $json.distribution_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"response_received\": true,\n  \"response_text\": {{ JSON.stringify($json.reply_text) }},\n  \"response_at\": \"{{ new Date().toISOString() }}\",\n  \"response_sentiment\": \"{{ $json.sentiment }}\"\n}",
+        "options": {}
+      },
+      "id": "907f0b11-af6d-444c-950e-515e2ac2afcb",
+      "name": "Update Distribution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -416,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Classification').first().json.suggested_action }}",
+                    "rightValue": "update_status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a35ed5cc-a29e-4135-92d4-25e7a4eebf99"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update_status"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Classification').first().json.suggested_action }}",
+                    "rightValue": "stop_automation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "1b816a86-76b4-4636-bb19-25e44a4c5c40"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "stop_automation"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Parse Classification').first().json.suggested_action }}",
+                    "rightValue": "escalate_human",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "fe596ab3-af09-4655-8a40-8879d629b1e0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "escalate"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "ba17a399-a3ed-4da8-9b90-f2caf43990ab",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.1,
+      "position": [
+        -192,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?ghl_id=eq.{{ $json.contact_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"investor_status\": \"{{ $('Parse Classification').first().json.new_status || $('Parse Classification').first().json.current_status }}\",\n  \"last_response_at\": \"{{ new Date().toISOString() }}\",\n  \"response_count\": {{ ($('Get Contact Info').first().json?.response_count || 0) + 1 }}\n}",
+        "options": {}
+      },
+      "id": "07839b9a-8dfd-40dd-9415-37e095a77889",
+      "name": "Update Contact Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?ghl_id=eq.{{ $('Parse Classification').first().json.contact_id }}\n",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"investor_status\": \"cold\",\n  \"sync_status\": \"opted_out\"\n}",
+        "options": {}
+      },
+      "id": "9c205dea-6bfb-4708-b9a3-72236ddf80cc",
+      "name": "Stop Automation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        192
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "text": "=🚨 *Human Review Required*\n\n*Contact:* {{ $('Parse Classification').first().json.contact_id }}\n*Reply:* {{ $('Parse Classification').first().json.reply_text }}\n*Sentiment:* {{ $('Parse Classification').first().json.sentiment }}\n*Urgency:* {{ $('Parse Classification').first().json.urgency }}\n*Reason:* {{ $('Parse Classification').first().json.classification?.reasoning || 'Unknown' }}",
+        "otherOptions": {}
+      },
+      "id": "0d7b8065-a3bd-411c-853b-9cfa588bab12",
+      "name": "Escalate to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        32,
+        480
+      ],
+      "webhookId": "a27a7abe-d19f-495f-99f0-2d410bf1b515",
+      "credentials": {
+        "slackApi": {
+          "id": "2QHqgjE8T0QU91vx",
+          "name": "VHLabs SLACK"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "41b2609c-8016-459f-95e5-cd8ce66b23af",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 📋 S1-06: Response Handler Workflow\n\n## 🎯 What This Workflow Does\nAutomatically processes replies from contacts and uses AI to intelligently decide what to do next. No manual review needed for routine responses.\n\n---\n\n## 🔄 How It Works (Step by Step)\n\n### Step 1: Receive Reply\n**Node:** `GHL Reply Webhook`\n- Listens for incoming replies from GoHighLevel\n- Captures: contact ID, name, email, phone, message content, subject line\n\n### Step 2: Clean & Validate Data\n**Node:** `Parse Webhook Data`\n- Normalizes the incoming data\n- Auto-detects channel (email vs SMS) based on subject line presence\n- If data is missing/invalid → skips processing\n\n### Step 3: Gather Context\n**Nodes:** `Get Last Distribution` → `Get Contact Info` → `Get Classifier Prompt`\n\n| Query | Purpose |\n|-------|---------|\n| Last message we sent | So AI knows what they're replying to |\n| Contact's current status | Engagement history context |\n| AI prompt instructions | How Claude should classify |\n\n### Step 4: AI Classification\n**Node:** `Claude: Classify Response`\n\nClaude receives:\n- Our original message\n- Their reply\n- Current contact status\n\nClaude returns:\n```json\n{\n  \"response_type\": \"interest\",\n  \"sentiment\": \"positive\", \n  \"urgency\": \"medium\",\n  \"suggested_action\": \"escalate_human\",\n  \"new_status\": \"warm_lead\",\n  \"reasoning\": \"Shows strong interest, asking for details\"\n}\n```\n\n### Step 5: Update Records\n**Node:** `Update Distribution`\n- Marks original message as \"replied to\"\n- Stores reply text and sentiment\n\n### Step 6: Route to Action\n**Node:** `Route by Action` (Switch)\n\n| AI Decision | What Happens |\n|-------------|--------------|\n| `update_status` | Upgrades contact status (e.g., cold → warm_lead) |\n| `stop_automation` | Removes from sequences, marks as opted_out |\n| `escalate_human` | Sends Slack alert for manual follow-up |\n| `continue_automation` | No action needed, continues normal flow |\n\n---\n\n## 📊 Response Types AI Detects\n\n| Type | Example | Typical Action |\n|------|---------|----------------|\n| `acknowledgment` | \"Got it, thanks!\" | Continue automation |\n| `question` | \"How does this work?\" | May escalate |\n| `interest` | \"I'd love to learn more\" | Escalate to human |\n| `objection` | \"Not sure about the price\" | Escalate to human |\n| `meeting_request` | \"Can we schedule a call?\" | Escalate to human |\n| `opt_out` | \"Please unsubscribe me\" | Stop automation |\n\n---\n\n## ⚙️ Current Configuration\n\n| Setting | Value |\n|---------|-------|\n| Webhook URL | `/webhook/ghl-reply` |\n| AI Model | Claude Sonnet 4 |\n| Database | Supabase (VH Labs) |\n| Slack Alerts | ⚠️ Disabled (needs channel config) |\n| Status | Inactive (ready to activate) |\n\n---\n\n## 💡 Key Benefits for Client\n\n✅ **No manual triage** - AI handles routine responses automatically  \n✅ **Smart escalation** - Only bothers humans when truly needed  \n✅ **Opt-out compliance** - Automatically respects unsubscribe requests  \n✅ **Full tracking** - Every reply logged with sentiment analysis  \n✅ **Dynamic statuses** - Contact engagement levels update in real-time",
+        "height": 2112,
+        "width": 768,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        -672
+      ],
+      "id": "d8fe4b9e-3a50-49ca-ac70-3f2dced7abf8",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {
+    "GHL Reply Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "cqmarketing.app.n8n.cloud",
+            "user-agent": "axios/0.21.4",
+            "content-length": "307",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "34.63.236.216",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "US",
+            "cf-ray": "9c53f4d0814b0ef9-ORD",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "x-forwarded-for": "34.63.236.216, 172.70.179.73",
+            "x-forwarded-host": "cqmarketing.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-19-6d7b847dcf-vjkkj",
+            "x-is-trusted": "yes",
+            "x-real-ip": "34.63.236.216"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "contactId": "7JJJwdKm73qpWT3c9Pdz",
+            "contactName": "Carlos Aragon",
+            "email": "caragon@me.com",
+            "phone": "(214) 499-5629",
+            "messageBody": "Thank you so much, im super interested in this, can you give me more details?\\n\\n\\n\\nThanks!\\n\\n\\n\\nCarlos Aragon\\n\\n\\n",
+            "messageSubject": "RE: Quick update for you"
+          },
+          "webhookUrl": "https://cqmarketing.app.n8n.cloud/webhook-test/ghl-reply",
+          "executionMode": "test"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "GHL Reply Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Webhook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Webhook Data": {
+      "main": [
+        [
+          {
+            "node": "Should Skip?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Skip?": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Last Distribution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Distribution": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Info": {
+      "main": [
+        [
+          {
+            "node": "Get Classifier Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Classifier Prompt": {
+      "main": [
+        [
+          {
+            "node": "Claude: Classify Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Classify Response": {
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [
+          {
+            "node": "Update Distribution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Distribution": {
+      "main": [
+        [
+          {
+            "node": "Route by Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Action": {
+      "main": [
+        [
+          {
+            "node": "Update Contact Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop Automation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Escalate to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Contact Status": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Automation": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate to Slack": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0c9bf9b2-d4ac-416a-952f-5aafc73dc6e9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "5d2A74CfGtKdsKEe",
+  "tags": []
+}

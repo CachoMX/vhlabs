@@ -1,70 +1,64 @@
 {
-  "name": "S2-02 Content Processor",
+  "name": "S2-02: Content Processor",
   "nodes": [
     {
       "parameters": {},
-      "id": "start",
+      "id": "03b15e2a-70fd-480f-99a2-880664d562aa",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        -880,
+        112
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"status\": \"processing\",\n  \"processing_started_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
-      "id": "update_status_processing",
+      "id": "5c5395f5-1e6f-4fdb-a9fd-e8a60e9bdee3",
       "name": "Update Status: Processing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300]
+      "position": [
+        -640,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}&select=*",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "options": {}
       },
-      "id": "get_content",
+      "id": "fb765b1d-45f2-46a0-9069-13d59489277b",
       "name": "Get Content Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 300]
+      "position": [
+        -448,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
@@ -89,75 +83,87 @@
         },
         "options": {}
       },
-      "id": "has_transcript",
+      "id": "a5a2f9e5-87a8-4757-93f5-0e613a8d879b",
       "name": "Has Transcript?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        -224,
+        112
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Placeholder for transcription API call\n// In production, call Whisper API, AssemblyAI, or similar\n\nconst content = $input.first().json[0];\nconst sourceUrl = content.source_url;\n\n// For now, return a placeholder\n// TODO: Implement actual transcription\nreturn {\n  json: {\n    content_id: content.id,\n    transcript: content.description || 'Transcript not available - manual input required',\n    needs_manual_transcript: true\n  }\n};"
       },
-      "id": "transcribe",
+      "id": "0d95203a-1e7f-47fe-be3c-fb39d98aff9b",
       "name": "Transcribe Audio/Video",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 200]
+      "position": [
+        0,
+        0
+      ],
+      "disabled": true
     },
     {
       "parameters": {
         "jsCode": "const content = $input.first().json[0];\n\nreturn {\n  json: {\n    content_id: content.id,\n    transcript: content.transcript_raw,\n    needs_manual_transcript: false\n  }\n};"
       },
-      "id": "use_existing",
+      "id": "f9eca26e-3062-499c-ac6a-a857f7ddf5c9",
       "name": "Use Existing Transcript",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 400]
+      "position": [
+        0,
+        208
+      ]
     },
     {
       "parameters": {},
-      "id": "merge",
+      "id": "c265aa28-2319-4b83-8968-0866ea8ed9bd",
       "name": "Merge",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [1340, 300]
+      "position": [
+        224,
+        112
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.content_agent&is_active=eq.true&limit=1",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "options": {}
       },
-      "id": "get_prompt",
+      "id": "e6c51747-bc0b-435e-907e-7c6bfc8e40f8",
       "name": "Get Content Agent Prompt",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 300]
+      "position": [
+        448,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "=YOUR_ANTHROPIC_API_KEY_HERE"
+              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
             },
             {
               "name": "anthropic-version",
@@ -176,21 +182,33 @@
           "timeout": 120000
         }
       },
-      "id": "claude_extraction",
+      "id": "b5e50940-e318-4acc-ad59-5a7edf4e8466",
       "name": "Claude: Extract Content",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 300]
+      "position": [
+        672,
+        112
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "cRWbVyfaE27zpOiq",
+          "name": "Anthropic account 2"
+        }
+      }
     },
     {
       "parameters": {
         "jsCode": "const response = $input.first().json;\nconst contentId = $node['Merge'].first().json.content_id;\n\ntry {\n  const text = response.content[0].text;\n  \n  // Extract JSON from response (handle markdown code blocks)\n  let jsonStr = text;\n  if (text.includes('```json')) {\n    jsonStr = text.split('```json')[1].split('```')[0];\n  } else if (text.includes('```')) {\n    jsonStr = text.split('```')[1].split('```')[0];\n  }\n  \n  const parsed = JSON.parse(jsonStr.trim());\n  \n  // Calculate content score\n  let score = 50;\n  score += Math.min((parsed.hooks?.length || 0) * 5, 25);\n  score += Math.min((parsed.clips?.length || 0) * 5, 15);\n  if (parsed.metadata?.content_type === 'case_study') score += 10;\n  \n  const priority = score > 80 ? 'high' : score > 50 ? 'medium' : 'low';\n  \n  return {\n    json: {\n      content_id: contentId,\n      hooks: parsed.hooks || [],\n      clips: parsed.clips || [],\n      transcript_structured: parsed.transcript || {},\n      metadata: parsed.metadata || {},\n      score: score,\n      priority: priority,\n      raw_response: text,\n      success: true\n    }\n  };\n} catch (error) {\n  return {\n    json: {\n      content_id: contentId,\n      success: false,\n      error: error.message,\n      raw_response: response.content?.[0]?.text\n    }\n  };\n}"
       },
-      "id": "parse_response",
+      "id": "ea30bdb1-6d73-44e8-a502-f3790d5a7c63",
       "name": "Parse AI Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 300]
+      "position": [
+        880,
+        112
+      ]
     },
     {
       "parameters": {
@@ -215,119 +233,168 @@
         },
         "options": {}
       },
-      "id": "check_success",
+      "id": "b337cbfc-57d7-4571-a27c-536f612db424",
       "name": "Extraction Success?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2220, 300]
+      "position": [
+        1104,
+        112
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"hooks\": {{ JSON.stringify($json.hooks) }},\n  \"clips\": {{ JSON.stringify($json.clips) }},\n  \"transcript_structured\": {{ JSON.stringify($json.transcript_structured) }},\n  \"ai_metadata\": {{ JSON.stringify($json.metadata) }},\n  \"score\": {{ $json.score }},\n  \"priority\": \"{{ $json.priority }}\",\n  \"status\": \"ready\",\n  \"processing_completed_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
-      "id": "update_content_success",
+      "id": "880deac8-1fc9-4175-9427-d84cc8d6a197",
       "name": "Update Content: Ready",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2440, 200]
+      "position": [
+        1328,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"status\": \"pending\",\n  \"processing_error\": \"{{ $json.error }}\",\n  \"processing_completed_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
-      "id": "update_content_error",
+      "id": "e0600d6a-824f-4654-ac37-2f4a7c1fec64",
       "name": "Update Content: Error",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2440, 400]
+      "position": [
+        1328,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
         "jsCode": "// Insert hooks into hooks table\nconst hooks = $json.hooks || [];\nconst contentId = $json.content_id;\n\nreturn hooks.map((hook, index) => ({\n  json: {\n    content_id: contentId,\n    text: hook.text,\n    timestamp: hook.timestamp || null,\n    hook_type: hook.hook_type || 'insight'\n  }\n}));"
       },
-      "id": "prepare_hooks",
+      "id": "07e6cd6f-5bd3-4bd9-a866-4b94e68aa417",
       "name": "Prepare Hooks for Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 200]
+      "position": [
+        1552,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/hooks",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"content_id\": \"{{ $json.content_id }}\",\n  \"text\": {{ JSON.stringify($json.text) }},\n  \"timestamp\": {{ $json.timestamp ? '\"' + $json.timestamp + '\"' : 'null' }},\n  \"hook_type\": \"{{ $json.hook_type }}\"\n}",
         "options": {}
       },
-      "id": "insert_hooks",
+      "id": "45e06406-70c3-4123-85a1-924cf756f3cf",
       "name": "Insert Hooks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 200]
+      "position": [
+        1760,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "UoQhCBOzMnGgpDEd",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/UoQhCBOzMnGgpDEd",
+          "cachedResultName": "VH Labs — S2-03: Transcript Processor"
+        },
+        "options": {}
+      },
+      "id": "8cf3ac0c-c5dd-4bef-8e59-6ce0c9c12a66",
+      "name": "Call S2-03: Transcript Processor",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -96,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract cleaned transcript from S2-03 response\nconst s203Response = $input.first().json;\n\nreturn {\n  json: {\n    content_id: s203Response.content_id,\n    transcript: s203Response.transcript_cleaned || s203Response.transcript_raw,\n    needs_manual_transcript: false\n  }\n};"
+      },
+      "id": "7de34313-4a68-453f-ab36-c4f9a2c999f9",
+      "name": "Extract Transcript from S2-03",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=hXNbeBWOGyYbcdww",
+          "cachedResultName": "=hXNbeBWOGyYbcdww"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1968,
+        0
+      ],
+      "id": "6486d861-ff0e-4d5d-bec6-a20c88edf95f",
+      "name": "Call S3-01: Distribution Router"
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
@@ -374,6 +441,11 @@
         [
           {
             "node": "Transcribe Audio/Video",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call S2-03: Transcript Processor",
             "type": "main",
             "index": 0
           }
@@ -485,13 +557,49 @@
           }
         ]
       ]
+    },
+    "Call S2-03: Transcript Processor": {
+      "main": [
+        [
+          {
+            "node": "Extract Transcript from S2-03",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Transcript from S2-03": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Hooks": {
+      "main": [
+        [
+          {
+            "node": "Call S3-01: Distribution Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
+  "versionId": "078438cc-952a-44c1-a27e-25334e673ba2",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
-  "tags": ["Austin CG", "System 2", "Content Pipeline"]
+  "id": "kh6qAUgzyLEoGTGU",
+  "tags": []
 }

@@ -1,5 +1,5 @@
 {
-  "name": "S2-01 Slack Intake",
+  "name": "S2-01: Slack Intake",
   "nodes": [
     {
       "parameters": {
@@ -8,22 +8,28 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook",
+      "id": "3835dd73-9dae-4aa9-b574-4091ae6b78f3",
       "name": "Slack Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300],
+      "position": [
+        -656,
+        112
+      ],
       "webhookId": "slack-reaction"
     },
     {
       "parameters": {
         "jsCode": "// Handle Slack URL verification challenge\nconst body = $input.first().json.body;\n\n// URL Verification (Slack sends this when setting up)\nif (body.type === 'url_verification') {\n  return {\n    json: {\n      challenge: body.challenge,\n      isChallenge: true\n    }\n  };\n}\n\n// Only process reaction_added events\nif (body.event?.type !== 'reaction_added') {\n  return {\n    json: {\n      skip: true,\n      reason: 'Not a reaction_added event'\n    }\n  };\n}\n\n// Extract event data\nconst event = body.event;\n\nreturn {\n  json: {\n    isChallenge: false,\n    skip: false,\n    reaction: event.reaction,\n    user: event.user,\n    channel: event.item.channel,\n    message_ts: event.item.ts,\n    event_ts: event.event_ts\n  }\n};"
       },
-      "id": "parse_event",
+      "id": "f11374bd-c80b-497e-bdbd-d810852e715f",
       "name": "Parse Slack Event",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        -432,
+        112
+      ]
     },
     {
       "parameters": {
@@ -48,11 +54,14 @@
         },
         "options": {}
       },
-      "id": "check_challenge",
+      "id": "dbe3c6f8-4458-4682-8f0d-92a4e85f5ec8",
       "name": "Is Challenge?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        -224,
+        112
+      ]
     },
     {
       "parameters": {
@@ -60,11 +69,14 @@
         "responseBody": "={{ JSON.stringify({ challenge: $json.challenge }) }}",
         "options": {}
       },
-      "id": "respond_challenge",
+      "id": "6dd305ae-1758-4f08-8754-1d791f92d7ad",
       "name": "Respond to Challenge",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [900, 200]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -89,11 +101,14 @@
         },
         "options": {}
       },
-      "id": "check_skip",
+      "id": "11c56dcf-937b-4ed7-babb-84cbeb46a455",
       "name": "Should Skip?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 400]
+      "position": [
+        0,
+        208
+      ]
     },
     {
       "parameters": {
@@ -101,11 +116,14 @@
         "responseBody": "={ \"ok\": true }",
         "options": {}
       },
-      "id": "respond_skip",
+      "id": "58ecb045-e4da-4b67-a33f-25e921e67e64",
       "name": "Respond OK (Skip)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1120, 300]
+      "position": [
+        224,
+        112
+      ]
     },
     {
       "parameters": {
@@ -118,57 +136,53 @@
         "jsonBody": "={\n  \"channel\": \"{{ $json.channel }}\",\n  \"latest\": \"{{ $json.message_ts }}\",\n  \"inclusive\": true,\n  \"limit\": 1\n}",
         "options": {}
       },
-      "id": "get_message",
+      "id": "2b9c55f4-e181-46de-a61b-f7f072c31d64",
       "name": "Get Original Message",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 500]
+      "position": [
+        224,
+        304
+      ]
     },
     {
       "parameters": {
         "jsCode": "const input = $input.first().json;\nconst reaction = $('Parse Slack Event').first().json.reaction;\n\n// Reaction to segment mapping\nconst reactionMap = {\n  'house': 're_investors',\n  'house_with_garden': 'house_buyers', \n  'dog': 'bird_doggers',\n  'handshake': 'jv_partners',\n  'books': 'coaching_students',\n  'moneybag': 'wholesalers',\n  'bank': 'lenders',\n  'memo': 'sellers',\n  'question': 'general_leads',\n  // Priority/featured flags\n  'fire': '_priority',\n  'star': '_featured'\n};\n\nconst mapped = reactionMap[reaction] || 'general_leads';\nconst isPriority = reaction === 'fire';\nconst isFeatured = reaction === 'star';\nconst segment = mapped.startsWith('_') ? 'general_leads' : mapped;\n\n// Extract URL from message if present\nconst messageText = input.messages?.[0]?.text || '';\nconst urlMatch = messageText.match(/<(https?:\\/\\/[^>|]+)/)?.[1] || messageText;\n\nreturn {\n  json: {\n    segment: segment,\n    is_priority: isPriority,\n    is_featured: isFeatured,\n    reaction: reaction,\n    source_url: urlMatch,\n    message_text: messageText,\n    channel: $('Parse Slack Event').first().json.channel,\n    message_ts: $('Parse Slack Event').first().json.message_ts,\n    tagged_by: $('Parse Slack Event').first().json.user\n  }\n};"
       },
-      "id": "map_reaction",
+      "id": "8b4a0b40-5d28-4ec9-b0d3-479bf0be02c6",
       "name": "Map Reaction to Segment",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 500]
+      "position": [
+        448,
+        304
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/contents",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=representation"
-            }
-          ]
-        },
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"source_url\": \"{{ $json.source_url }}\",\n  \"source_type\": \"call\",\n  \"description\": \"{{ $json.message_text.substring(0, 500) }}\",\n  \"slack_channel_id\": \"{{ $json.channel }}\",\n  \"slack_message_ts\": \"{{ $json.message_ts }}\",\n  \"slack_reactions\": [{\n    \"reaction\": \"{{ $json.reaction }}\",\n    \"user\": \"{{ $json.tagged_by }}\",\n    \"timestamp\": \"{{ new Date().toISOString() }}\"\n  }],\n  \"audiences\": [\"{{ $json.segment }}\"],\n  \"is_featured\": {{ $json.is_featured }},\n  \"priority\": \"{{ $json.is_priority ? 'high' : 'medium' }}\",\n  \"status\": \"pending\"\n}",
         "options": {}
       },
-      "id": "create_content",
+      "id": "34208a32-7d2a-46e0-99f7-80e4d7bc91d9",
       "name": "Create Content Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 500]
+      "position": [
+        672,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
@@ -176,45 +190,57 @@
         "responseBody": "={ \"ok\": true, \"content_id\": \"{{ $json[0]?.id }}\" }",
         "options": {}
       },
-      "id": "respond_success",
+      "id": "b5a027b1-0889-4bde-9d80-9634824eeb99",
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1780, 500]
+      "position": [
+        880,
+        304
+      ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
+          "value": "kh6qAUgzyLEoGTGU",
           "mode": "list",
-          "value": ""
+          "cachedResultUrl": "/workflow/kh6qAUgzyLEoGTGU",
+          "cachedResultName": "VH Labs — S2-02: Content Processor"
         },
         "options": {}
       },
-      "id": "trigger_processor",
-      "name": "Trigger Content Processor",
+      "id": "003fd870-1092-4eee-b3ce-8e9a20e64e7a",
+      "name": "S2-02: Content Processor",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
-      "position": [2000, 500],
-      "disabled": true
+      "position": [
+        1104,
+        224
+      ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
+          "value": "WQ6fyZOn5BOV8CCN",
           "mode": "list",
-          "value": ""
+          "cachedResultUrl": "/workflow/WQ6fyZOn5BOV8CCN",
+          "cachedResultName": "VH Labs — S4-02 Analytics Logger"
         },
         "options": {}
       },
-      "id": "log_event",
-      "name": "Log Analytics Event",
+      "id": "081f70a1-70e7-4e0a-b8d8-013ab2d27c8b",
+      "name": "S4-02 Analytics Logger",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
-      "position": [2000, 650],
-      "disabled": true
+      "position": [
+        1104,
+        464
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Slack Webhook": {
       "main": [
@@ -311,12 +337,12 @@
       "main": [
         [
           {
-            "node": "Trigger Content Processor",
+            "node": "S2-02: Content Processor",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Log Analytics Event",
+            "node": "S4-02 Analytics Logger",
             "type": "main",
             "index": 0
           }
@@ -324,11 +350,14 @@
       ]
     }
   },
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
+  "versionId": "661e9e04-d9b1-4e5e-806b-bf0ca01861e7",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
-  "tags": ["Austin CG", "System 2", "Content Pipeline"]
+  "id": "NAlE4fm8kBm31SR5",
+  "tags": []
 }

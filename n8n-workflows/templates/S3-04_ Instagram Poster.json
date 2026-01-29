@@ -1,38 +1,38 @@
 {
-  "name": "S3-04 Instagram Poster",
+  "name": "S3-04: Instagram Poster",
   "nodes": [
     {
       "parameters": {},
-      "id": "start",
+      "id": "d51b6760-3088-459d-b195-0a33dd0071cb",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        -1104,
+        112
+      ]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/prompts?prompt_id=eq.instagram_caption&is_active=eq.true&limit=1",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
-            }
-          ]
-        },
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.instagram_caption&is_active=eq.true&limit=1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "options": {}
       },
-      "id": "get_prompt",
+      "id": "a08a9109-3e63-4988-ad7d-640f7fece0cc",
       "name": "Get Caption Prompt",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300]
+      "position": [
+        -848,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
@@ -62,21 +62,27 @@
           "timeout": 30000
         }
       },
-      "id": "claude_caption",
+      "id": "05cab3f9-7201-4d4a-8086-67991b8bfbe8",
       "name": "Claude: Generate Caption",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 300]
+      "position": [
+        -656,
+        112
+      ]
     },
     {
       "parameters": {
         "jsCode": "const response = $input.first().json;\nconst startData = $('Start').first().json;\n\nconst caption = response.content?.[0]?.text || `${startData.best_hook}\\n\\n👇 Link in bio\\n\\n#realestateinvesting #investortips`;\n\nreturn {\n  json: {\n    content_id: startData.content_id,\n    caption: caption,\n    media_url: startData.source_url,\n    segment: startData.segment_slug\n  }\n};"
       },
-      "id": "prepare_post",
+      "id": "4f39cccd-e295-475b-a8d9-95fd663e5852",
       "name": "Prepare Post Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        -448,
+        112
+      ]
     },
     {
       "parameters": {
@@ -101,11 +107,14 @@
         },
         "options": {}
       },
-      "id": "check_ig_configured",
+      "id": "4763e842-7ca4-4125-8412-38fef5319cee",
       "name": "Instagram Configured?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        -224,
+        112
+      ]
     },
     {
       "parameters": {
@@ -141,21 +150,27 @@
           "timeout": 120000
         }
       },
-      "id": "create_ig_media",
+      "id": "e0c7a1d0-7369-4b81-a62e-5fe78ed8f9f9",
       "name": "Create IG Media Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1340, 200]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Wait for media to be ready\n// Instagram needs time to process video\nawait new Promise(resolve => setTimeout(resolve, 30000));\n\nreturn $input.all();"
       },
-      "id": "wait_processing",
+      "id": "b568b395-8886-4f23-a8c3-7e423be896f5",
       "name": "Wait for Processing",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 200]
+      "position": [
+        224,
+        0
+      ]
     },
     {
       "parameters": {
@@ -181,31 +196,22 @@
         },
         "options": {}
       },
-      "id": "publish_ig",
+      "id": "47a75fb0-429c-4c1a-9f7b-fa0a2bc2d58e",
       "name": "Publish to Instagram",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 200]
+      "position": [
+        448,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/distributions",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
             {
               "name": "Prefer",
               "value": "return=representation"
@@ -217,73 +223,69 @@
         "jsonBody": "={\n  \"content_id\": \"{{ $node['Prepare Post Data'].json.content_id }}\",\n  \"channel\": \"instagram\",\n  \"message_type\": \"social_post\",\n  \"message_content\": {{ JSON.stringify($node['Prepare Post Data'].json.caption) }},\n  \"media_url\": \"{{ $node['Prepare Post Data'].json.media_url }}\",\n  \"external_id\": \"{{ $json.id }}\",\n  \"external_url\": \"https://instagram.com/p/{{ $json.id }}\",\n  \"sent_at\": \"{{ new Date().toISOString() }}\",\n  \"status\": \"sent\"\n}",
         "options": {}
       },
-      "id": "create_distribution",
+      "id": "69f84981-23f5-41ae-9bd9-5185650575dd",
       "name": "Create Distribution Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2000, 200]
+      "position": [
+        672,
+        0
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Instagram not configured - create placeholder distribution\nconst postData = $node['Prepare Post Data'].first().json;\n\nreturn {\n  json: {\n    status: 'instagram_not_configured',\n    message: 'Instagram API not configured. Manual posting required.',\n    caption: postData.caption,\n    media_url: postData.media_url,\n    content_id: postData.content_id\n  }\n};"
       },
-      "id": "ig_not_configured",
+      "id": "2d4b8a9c-8fd1-4616-8fc7-a4b342c26bfa",
       "name": "IG Not Configured",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 400]
+      "position": [
+        0,
+        208
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/distributions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $vars.SUPABASE_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/distributions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"content_id\": \"{{ $json.content_id }}\",\n  \"channel\": \"instagram\",\n  \"message_type\": \"social_post\",\n  \"message_content\": {{ JSON.stringify($json.caption) }},\n  \"media_url\": \"{{ $json.media_url }}\",\n  \"status\": \"pending\",\n  \"error_message\": \"Manual posting required - IG API not configured\"\n}",
         "options": {}
       },
-      "id": "create_pending_distribution",
+      "id": "7f54b7a0-995f-4325-ac96-453481976347",
       "name": "Create Pending Distribution",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 400]
+      "position": [
+        224,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "status",
-              "value": "completed"
-            }
-          ]
-        },
         "options": {}
       },
-      "id": "return_result",
+      "id": "b1fbb583-008e-4263-8236-dd3544c7053c",
       "name": "Return Result",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [2220, 300]
+      "position": [
+        880,
+        112
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
@@ -414,11 +416,14 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
+  "versionId": "aee05385-109b-4a55-8797-b3f9d1acb96e",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
-  "tags": ["Austin CG", "System 3", "Distribution"]
+  "id": "u9i9kAQswGmeCBTJ",
+  "tags": []
 }

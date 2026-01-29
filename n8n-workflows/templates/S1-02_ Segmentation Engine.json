@@ -1,0 +1,348 @@
+{
+  "name": "S1-02: Segmentation Engine",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d57e042e-9d9d-446f-8646-a8e1131c3e47",
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Extract parsed note data\nconst {\n  contact_id,\n  intent_signals = [],\n  objections = [],\n  timeline,\n  sentiment,\n  recommended_status,\n  follow_up_priority,\n  current_status,\n  current_segment\n} = input;\n\nlet newStatus = recommended_status || current_status || 'general_leads';\nlet newSegment = current_segment || 'general_leads';\n\n// ========== SEGMENTATION RULES ==========\n\n// Rule 1: Multiple buying signals + short timeline = hot_lead\nif (intent_signals.includes('buying') && \n    (timeline === 'immediate' || timeline === 'short')) {\n  newStatus = 'hot_lead';\n}\n\n// Rule 2: JV/partnering language = jv_potential\nif (intent_signals.includes('partnering')) {\n  newStatus = 'jv_potential';\n  newSegment = 'jv_partners';\n}\n\n// Rule 3: Funding interest = route to lenders segment\nif (intent_signals.includes('funding')) {\n  newSegment = 'lenders';\n  if (newStatus === 'general_leads') newStatus = 'active_investor';\n}\n\n// Rule 4: Has objections (unless hot) = objection_holder\nif (objections.length > 0 && newStatus !== 'hot_lead') {\n  newStatus = 'objection_holder';\n}\n\n// Rule 5: Negative sentiment + no clear intent = tire_kicker\nif (sentiment === 'negative' && \n    (intent_signals.length === 0 || intent_signals.includes('none'))) {\n  newStatus = 'tire_kicker';\n}\n\n// Rule 6: Positive sentiment + learning intent = coaching potential\nif (sentiment === 'positive' && intent_signals.includes('learning')) {\n  newSegment = 'coaching_students';\n  if (newStatus === 'general_leads') newStatus = 'passive_investor';\n}\n\n// Rule 7: Selling intent = sellers segment\nif (intent_signals.includes('selling')) {\n  newSegment = 'sellers';\n}\n\n// Determine if status actually changed\nconst statusChanged = newStatus !== current_status;\nconst segmentChanged = newSegment !== current_segment;\n\n// Determine touchpoint frequency based on status\nconst frequencyMap = {\n  'hot_lead': 5,\n  'active_investor': 10,\n  'jv_potential': 14,\n  'passive_investor': 21,\n  'objection_holder': 30,\n  'tire_kicker': 30,\n  'dormant': 45,\n  'cold': null\n};\n\nreturn {\n  json: {\n    contact_id: contact_id,\n    new_status: newStatus,\n    new_segment: newSegment,\n    status_changed: statusChanged,\n    segment_changed: segmentChanged,\n    previous_status: current_status,\n    previous_segment: current_segment,\n    follow_up_priority: follow_up_priority || 'medium',\n    touchpoint_frequency_days: frequencyMap[newStatus] || 30,\n    rules_applied: {\n      intent_signals,\n      objections,\n      timeline,\n      sentiment\n    }\n  }\n};"
+      },
+      "id": "15557fb2-4bc8-4881-ad7a-994317682c04",
+      "name": "Apply Segmentation Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "status_changed",
+              "leftValue": "={{ $json.status_changed || $json.segment_changed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "3ae379b3-9f74-4dbe-b0ec-8a443c28af23",
+      "name": "Any Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?ghl_id=eq.{{ $('Apply Segmentation Rules').first().json.contact_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"segment\": \"{{ $('Apply Segmentation Rules').first().json.new_segment }}\",\n    \"investor_status\": \"{{ $('Apply Segmentation Rules').first().json.new_status }}\",\n    \"last_synced_at\": \"{{ new Date().toISOString() }}\"\n  }",
+        "options": {}
+      },
+      "id": "e938a084-08dc-4f38-809a-106e74e9ea76",
+      "name": "Update Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        -64
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "b2e13d29-087c-4293-87c7-485319615a75",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1360,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "  // Tags actuales del contacto (del GET)\n  const existingTags = $input.first().json.contact.tags || [];\n\n  // Tags nuevos del nodo de segmentacion\n  const newStatus = $('Apply Segmentation Rules').first().json.new_status;\n  const newSegment = $('Apply Segmentation Rules').first().json.new_segment;\n\n  // Merge sin duplicados\n  const mergedTags = [...new Set([...existingTags, newStatus, newSegment])];\n\n  return {\n    json: {\n      ...$input.first().json,\n      merged_tags: mergedTags\n    }\n  };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        -64
+      ],
+      "id": "451ad3d1-1e9a-4791-8243-6ec1ea5ac1b2",
+      "name": "Merge old/new tags"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contact_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer pit-c32c4d2c-bda8-4e9a-8df1-14c237e11351"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "28e87ddd-1925-420d-9557-bea3bfade883",
+      "name": "Get Contact Tags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        16,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": " return {\n    json: {\n      event_type: \"segment_changed\",\n      event_category: \"system1\",\n      workflow_name: \"S1-02_segmentation_engine\",\n      contact_id: $('Apply Segmentation Rules').first().json.contact_id,\n      success: true,\n      event_data: {\n        previous_status: $('Apply Segmentation Rules').first().json.previous_status,\n        new_status: $('Apply Segmentation Rules').first().json.new_status,\n        previous_segment: $('Apply Segmentation Rules').first().json.previous_segment,\n        new_segment: $('Apply Segmentation Rules').first().json.new_segment\n      }\n    }\n  };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -64
+      ],
+      "id": "ab31152a-b9d2-413b-b8b2-72ef3abd7be0",
+      "name": "Prepare Log Payload"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Apply Segmentation Rules').first().json.contact_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer pit-c32c4d2c-bda8-4e9a-8df1-14c237e11351"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=  {\n    \"tags\": {{ JSON.stringify($json.merged_tags) }},\n    \"customFields\": [\n      {\n        \"key\": \"investor_status\",\n        \"field_value\": \"{{ $('Apply Segmentation Rules').first().json.new_status }}\"\n      },\n      {\n        \"key\": \"segment\",\n        \"field_value\": \"{{ $('Apply Segmentation Rules').first().json.new_segment }}\"\n      }\n    ]\n  }",
+        "options": {}
+      },
+      "id": "22174343-8679-496a-b7ff-d70012b29ee5",
+      "name": "Update GHL Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 📋 S1-02: Segmentation Engine Workflow\n\n## 🎯 What This Workflow Does\nApplies rule-based logic to automatically assign contacts to segments and statuses based on AI-parsed note data. Syncs changes to both GHL and Supabase, then logs for analytics.\n\n---\n\n## 🔄 How It Works (Step by Step)\n\n### Step 1: Triggered by Note Parser\n**Node:** `Start` (Execute Workflow Trigger)\n- Called from: `S1-01: Note Parser`\n- Receives: Parsed note data (intent signals, objections, sentiment, etc.)\n\n### Step 2: Apply Segmentation Rules\n**Node:** `Apply Segmentation Rules` (Code)\n\nEvaluates contact data against 7 business rules:\n\n| Rule | Condition | Result |\n|------|-----------|--------|\n| 1 | Buying intent + immediate/short timeline | `hot_lead` |\n| 2 | Partnering language | `jv_potential` + `jv_partners` segment |\n| 3 | Funding interest | `lenders` segment |\n| 4 | Has objections (unless hot) | `objection_holder` |\n| 5 | Negative sentiment + no intent | `tire_kicker` |\n| 6 | Positive sentiment + learning intent | `coaching_students` segment |\n| 7 | Selling intent | `sellers` segment |\n\nAlso calculates `touchpoint_frequency_days` based on status.\n\n### Step 3: Check for Changes\n**Node:** `Any Changes?`\n- Compares new vs previous status/segment\n- ❌ No changes → Return Result (skip updates)\n- ✅ Changes detected → Continue to update\n\n### Step 4: Get & Merge Tags\n**Nodes:** `Get Contact Tags` → `Merge old/new tags`\n- Fetches current tags from GHL contact\n- Merges with new status/segment (no duplicates)\n\n### Step 5: Update GHL\n**Node:** `Update GHL Contact`\n- PUT `/contacts/{id}`\n- Updates: tags, `investor_status`, `segment` custom fields\n\n### Step 6: Update Supabase\n**Node:** `Update Supabase`\n- PATCH `contacts_sync`\n- Updates: segment, investor_status, last_synced_at\n\n### Step 7: Log Analytics\n**Nodes:** `Prepare Log Payload` → `Log Segment Change`\n- Calls: `S4-02: Analytics Logger`\n- Event type: `segment_changed`\n- Tracks: previous → new status/segment\n\n---\n\n## 📊 Touchpoint Frequency by Status\n\n| Status | Follow-up Every |\n|--------|-----------------|\n| `hot_lead` | 5 days |\n| `active_investor` | 10 days |\n| `jv_potential` | 14 days |\n| `passive_investor` | 21 days |\n| `objection_holder` | 30 days |\n| `tire_kicker` | 30 days |\n| `dormant` | 45 days |\n| `cold` | No auto follow-up |\n\n---\n\n## 🏷️ Possible Segments\n\n| Segment | Description |\n|---------|-------------|\n| `general_leads` | Default, unclassified |\n| `jv_partners` | Joint venture potential |\n| `lenders` | Interested in funding |\n| `coaching_students` | Learning/education focused |\n| `sellers` | Want to sell property |\n\n---\n\n## ⚙️ Current Configuration\n\n| Setting | Value |\n|---------|-------|\n| Trigger | Sub-workflow (from S1-01) |\n| Database | Supabase (VH Labs) |\n| CRM | GoHighLevel (Wyohouses) |\n| Analytics | S4-02 Analytics Logger |\n| Status | ✅ Active |\n\n---\n\n## 🔗 Workflow Chain",
+        "height": 2288,
+        "width": 752,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1472,
+        -512
+      ],
+      "id": "ba58ee25-ee27-4323-89e6-68c78418acc2",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "WQ6fyZOn5BOV8CCN",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/WQ6fyZOn5BOV8CCN",
+          "cachedResultName": "VH Labs — S4-02 Analytics Logger"
+        },
+        "options": {}
+      },
+      "id": "6f3fa825-19da-4ccb-9c97-7f443c44cb82",
+      "name": "S4-02 Analytics Logger",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1136,
+        -64
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Apply Segmentation Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Segmentation Rules": {
+      "main": [
+        [
+          {
+            "node": "Any Changes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Changes?": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Tags",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Supabase": {
+      "main": [
+        [
+          {
+            "node": "Prepare Log Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge old/new tags": {
+      "main": [
+        [
+          {
+            "node": "Update GHL Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Tags": {
+      "main": [
+        [
+          {
+            "node": "Merge old/new tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Log Payload": {
+      "main": [
+        [
+          {
+            "node": "S4-02 Analytics Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update GHL Contact": {
+      "main": [
+        [
+          {
+            "node": "Update Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S4-02 Analytics Logger": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ed3a1f15-7092-4e0b-b4e8-d6cbf1f2f8f3",
+  "meta": {
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
+  },
+  "id": "bU48LPXDnctdrE0z",
+  "tags": []
+}

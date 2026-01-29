@@ -3,39 +3,40 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "start",
+      "id": "17e47750-c237-4640-886a-ecd6427d71d3",
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        -656,
+        80
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/analytics_events",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4aWV1eWJkaG5na2trbWF4cHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNjU2NjMsImV4cCI6MjA4MTc0MTY2M30.Iz810S-OLictocvT_Hx3rZI7jhIkgPCTcJq9OEBVt5o"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"event_type\": \"workflow_error\",\n  \"event_category\": \"{{ $json.event_category || 'system4' }}\",\n  \"workflow_name\": \"{{ $json.workflow_name }}\",\n  \"event_data\": {\n    \"node_name\": \"{{ $json.node_name }}\",\n    \"error_message\": \"{{ $json.error_message }}\",\n    \"error_data\": {{ JSON.stringify($json.error_data || {}) }},\n    \"severity\": \"{{ $json.severity || 'medium' }}\"\n  },\n  \"success\": false\n}",
         "options": {}
       },
-      "id": "log_error",
-      "name": "Log Error to Supabase",
+      "id": "acef1fb7-f42d-4708-8c50-4d1f72d2ed71",
+      "name": "Log Error to Supabase1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300]
+      "position": [
+        -432,
+        80
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
@@ -43,7 +44,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -60,95 +62,103 @@
         },
         "options": {}
       },
-      "id": "check_severity",
-      "name": "Is Critical?",
+      "id": "3a32acd1-0548-419d-8781-323feb05a105",
+      "name": "Is Critical?1",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        -208,
+        80
+      ]
     },
     {
       "parameters": {
-        "channel": "={{ $vars.SLACK_ALERTS_CHANNEL || '#alerts' }}",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
         "text": "=🚨 *CRITICAL ERROR* in workflow `{{ $json.workflow_name }}`\n\n*Node:* {{ $json.node_name }}\n*Error:* {{ $json.error_message }}\n*Time:* {{ new Date().toISOString() }}",
         "otherOptions": {}
       },
-      "id": "slack_alert",
-      "name": "Send Slack Alert",
+      "id": "a0901dc8-3aa6-46a2-a386-792fb1ae7233",
+      "name": "Send Slack Alert1",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [900, 200]
+      "position": [
+        32,
+        -32
+      ],
+      "webhookId": "e56d8c0c-5d1c-4764-8e75-8677769945a4",
+      "credentials": {
+        "slackApi": {
+          "id": "2QHqgjE8T0QU91vx",
+          "name": "VHLabs SLACK"
+        }
+      }
     },
     {
       "parameters": {
-        "values": {
-          "boolean": [
-            {
-              "name": "logged",
-              "value": true
-            }
-          ],
-          "boolean1": [
-            {
-              "name": "alerted",
-              "value": "={{ $json.severity === 'critical' }}"
-            }
-          ]
-        },
         "options": {}
       },
-      "id": "return_result",
-      "name": "Return Result",
+      "id": "e24502f5-53cb-42af-a5d4-a903a4cc6d41",
+      "name": "Return Result1",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [900, 400]
+      "position": [
+        272,
+        96
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Start": {
       "main": [
         [
           {
-            "node": "Log Error to Supabase",
+            "node": "Log Error to Supabase1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Error to Supabase": {
+    "Log Error to Supabase1": {
       "main": [
         [
           {
-            "node": "Is Critical?",
+            "node": "Is Critical?1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Critical?": {
+    "Is Critical?1": {
       "main": [
         [
           {
-            "node": "Send Slack Alert",
+            "node": "Send Slack Alert1",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Return Result",
+            "node": "Return Result1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Slack Alert": {
+    "Send Slack Alert1": {
       "main": [
         [
           {
-            "node": "Return Result",
+            "node": "Return Result1",
             "type": "main",
             "index": 0
           }
@@ -156,11 +166,15 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
+  "versionId": "31a1ab4d-20e6-4808-a1cd-9badc594cca5",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
-  "tags": ["Austin CG", "Utility"]
+  "id": "w2OYrel3qCHq1xZD",
+  "tags": []
 }
