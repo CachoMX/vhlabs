@@ -1,25 +1,27 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { DistributionPerformance } from '../../types';
+import type { Database } from '@/types/database.types';
+
+type Distribution = Database['public']['Tables']['distributions']['Row'];
 
 interface ChannelChartProps {
-  data: DistributionPerformance[];
+  distributions: Distribution[];
 }
 
-export const ChannelChart: React.FC<ChannelChartProps> = ({ data }) => {
-  // Group by channel only (combine all message_types per channel)
-  const groupedData = data.reduce((acc, item) => {
-    const existing = acc.find(d => d.channel === item.channel);
-    if (existing) {
-      existing.sent += item.total_sent || 0;
-    } else {
-      acc.push({
-        channel: item.channel,
-        sent: item.total_sent || 0,
-      });
-    }
-    return acc;
-  }, [] as { channel: string; sent: number }[]);
+export const ChannelChart: React.FC<ChannelChartProps> = ({ distributions }) => {
+  // Group distributions by channel and count
+  const channelMap = new Map<string, number>();
+
+  distributions.forEach((dist) => {
+    const count = channelMap.get(dist.channel) || 0;
+    channelMap.set(dist.channel, count + 1);
+  });
+
+  // Convert to chart data
+  const groupedData = Array.from(channelMap.entries()).map(([channel, sent]) => ({
+    channel,
+    sent,
+  }));
 
   return (
     <ResponsiveContainer width="100%" height={300}>

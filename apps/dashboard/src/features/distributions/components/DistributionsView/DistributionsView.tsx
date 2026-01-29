@@ -5,9 +5,7 @@ import { DistributionFilters } from '../DistributionFilters/DistributionFilters'
 import { ChannelChart } from '../ChannelChart/ChannelChart';
 import { PerformanceChart } from '../PerformanceChart/PerformanceChart';
 import { useGetDistributions } from '../../api/get-distributions';
-import { useGetDistributionPerformance } from '../../api/get-distribution-performance';
 import type { DistributionFilters as Filters } from '../../types';
-// import type { Database } from '@/types/database.types';
 
 
 export const DistributionsView: React.FC = () => {
@@ -21,7 +19,12 @@ export const DistributionsView: React.FC = () => {
     pageSize,
   });
 
-  const { data: performanceData, isLoading: isLoadingPerformance, error: performanceError } = useGetDistributionPerformance();
+  // Get ALL distributions for charts (not paginated)
+  const { data: allDistributionsData, isLoading: isLoadingAllDistributions } = useGetDistributions({
+    filters,
+    page: 1,
+    pageSize: 1000, // Get all for chart calculations
+  });
 
   const columns = [
     {
@@ -81,11 +84,11 @@ export const DistributionsView: React.FC = () => {
     setPage(newPage);
   };
 
-  if (distributionsError || performanceError) {
+  if (distributionsError) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
         <p className="text-red-800">
-          Error loading distributions: {distributionsError?.message || performanceError?.message}
+          Error loading distributions: {distributionsError?.message}
         </p>
       </div>
     );
@@ -101,19 +104,19 @@ export const DistributionsView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Sends by Channel</h2>
-          {isLoadingPerformance ? (
+          {isLoadingAllDistributions ? (
             <div className="animate-pulse h-[300px] bg-gray-200 rounded" />
           ) : (
-            <ChannelChart data={performanceData || []} />
+            <ChannelChart distributions={allDistributionsData?.data || []} />
           )}
         </Card>
 
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Open Rate Over Time</h2>
-          {isLoadingDistributions ? (
+          {isLoadingAllDistributions ? (
             <div className="animate-pulse h-[300px] bg-gray-200 rounded" />
           ) : (
-            <PerformanceChart distributions={distributionsData?.data || []} />
+            <PerformanceChart distributions={allDistributionsData?.data || []} />
           )}
         </Card>
       </div>
