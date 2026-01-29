@@ -4,18 +4,17 @@ import { DataTable } from '@/components/DataTable';
 import { DistributionFilters } from '../DistributionFilters/DistributionFilters';
 import { ChannelChart } from '../ChannelChart/ChannelChart';
 import { PerformanceChart } from '../PerformanceChart/PerformanceChart';
-import { useGetDistributions } from '../../api/get-distributions';
+import { useGetDistributions, type DistributionWithContact } from '../../api/get-distributions';
 import type { DistributionFilters as Filters } from '../../types';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Database } from '@/types/database.types';
-
-type Distribution = Database['public']['Tables']['distributions']['Row'];
+import { Eye } from 'lucide-react';
 
 
 export const DistributionsView: React.FC = () => {
   const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [previewDistribution, setPreviewDistribution] = useState<DistributionWithContact | null>(null);
 
   const { data: distributionsData, isLoading: isLoadingDistributions, error: distributionsError } = useGetDistributions({
     filters,
@@ -30,13 +29,33 @@ export const DistributionsView: React.FC = () => {
     pageSize: 1000, // Get all for chart calculations
   });
 
-  const columns: ColumnDef<Distribution>[] = [
+  const columns: ColumnDef<DistributionWithContact>[] = [
     {
       accessorKey: 'channel',
       header: 'Channel',
       cell: ({ getValue }) => (
         <span className="capitalize font-medium">{getValue() as string}</span>
       ),
+    },
+    {
+      id: 'recipient',
+      header: 'Recipient',
+      cell: ({ row }) => {
+        const contact = row.original.contact;
+        const channel = row.original.channel;
+
+        if (!contact) return <span className="text-gray-400">-</span>;
+
+        const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown';
+        const contactInfo = channel === 'sms' ? contact.phone : contact.email;
+
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium text-sm">{name}</span>
+            {contactInfo && <span className="text-xs text-gray-500">{contactInfo}</span>}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'subject',
@@ -92,6 +111,19 @@ export const DistributionsView: React.FC = () => {
           </span>
         );
       },
+    },
+    {
+      id: 'preview',
+      header: 'Preview',
+      cell: ({ row }) => (
+        <button
+          onClick={() => setPreviewDistribution(row.original)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          title="Preview message"
+        >
+          <Eye className="h-4 w-4 text-gray-600" />
+        </button>
+      ),
     },
   ];
 
@@ -150,6 +182,123 @@ export const DistributionsView: React.FC = () => {
           }}
         />
       </Card>
+
+      {/* Preview Modal */}
+      {previewDistribution && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Message Preview</h3>
+              <button
+                onClick={() => setPreviewDistribution(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Recipient Info */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Recipient</h4>
+                {previewDistribution.contact ? (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      {[previewDistribution.contact.first_name, previewDistribution.contact.last_name]
+                        .filter(Boolean)
+                        .join(' ') || 'Unknown'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {previewDistribution.channel === 'sms'
+                        ? previewDistribution.contact.phone
+                        : previewDistribution.contact.email}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No contact information</p>
+                )}
+              </div>
+
+              {/* Channel & Type */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-1">Channel</h4>
+                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                    {previewDistribution.channel}
+                  </span>
+                </div>
+                {previewDistribution.message_type && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">Type</h4>
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 capitalize">
+                      {previewDistribution.message_type}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Subject (for emails) */}
+              {previewDistribution.subject && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-1">Subject</h4>
+                  <p className="text-sm text-gray-900">{previewDistribution.subject}</p>
+                </div>
+              )}
+
+              {/* Message Content */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-1">Message</h4>
+                <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-900 whitespace-pre-wrap">
+                  {previewDistribution.message_content || 'No message content'}
+                </div>
+              </div>
+
+              {/* Media URL */}
+              {previewDistribution.media_url && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-1">Media</h4>
+                  <a
+                    href={previewDistribution.media_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    {previewDistribution.media_url}
+                  </a>
+                </div>
+              )}
+
+              {/* Response (if any) */}
+              {previewDistribution.response_received && previewDistribution.response_text && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-green-900 mb-2">Response Received</h4>
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{previewDistribution.response_text}</p>
+                  {previewDistribution.response_sentiment && (
+                    <span className="inline-flex mt-2 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 capitalize">
+                      {previewDistribution.response_sentiment}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Metadata */}
+              <div className="border-t border-gray-200 pt-4 text-xs text-gray-500 space-y-1">
+                {previewDistribution.sent_at && (
+                  <p>Sent: {new Date(previewDistribution.sent_at).toLocaleString()}</p>
+                )}
+                {previewDistribution.opened_at && (
+                  <p>Opened: {new Date(previewDistribution.opened_at).toLocaleString()}</p>
+                )}
+                {previewDistribution.response_at && (
+                  <p>Responded: {new Date(previewDistribution.response_at).toLocaleString()}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

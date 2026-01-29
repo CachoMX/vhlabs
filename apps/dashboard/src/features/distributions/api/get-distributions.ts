@@ -5,6 +5,15 @@ import type { DistributionFilters } from '../types';
 
 type Distribution = Database['public']['Tables']['distributions']['Row'];
 
+export interface DistributionWithContact extends Distribution {
+  contact?: {
+    email: string | null;
+    phone: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+}
+
 export interface GetDistributionsParams {
   filters?: DistributionFilters;
   page?: number;
@@ -12,7 +21,7 @@ export interface GetDistributionsParams {
 }
 
 export interface GetDistributionsResponse {
-  data: Distribution[];
+  data: DistributionWithContact[];
   total: number;
   page: number;
   pageSize: number;
@@ -23,7 +32,15 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
 
   let query = supabase
     .from('distributions')
-    .select('*', { count: 'exact' });
+    .select(`
+      *,
+      contact:contacts_sync!contact_sync_id(
+        email,
+        phone,
+        first_name,
+        last_name
+      )
+    `, { count: 'exact' });
 
   // Apply filters
   if (filters.channel) {
@@ -53,7 +70,7 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
   }
 
   return {
-    data: data || [],
+    data: (data as any) || [],
     total: count || 0,
     page,
     pageSize,
