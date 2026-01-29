@@ -12,11 +12,13 @@ interface PromptDetailProps {
 
 const categoryOptions: SelectOption[] = [
   { value: '', label: 'No Category' },
-  { value: 'content-generation', label: 'Content Generation' },
-  { value: 'analysis', label: 'Analysis' },
-  { value: 'summarization', label: 'Summarization' },
-  { value: 'classification', label: 'Classification' },
-  { value: 'extraction', label: 'Extraction' },
+  { value: 'setter', label: 'Setter' },
+  { value: 'response_handling', label: 'Response Handling' },
+  { value: 'note_parsing', label: 'Note Parsing' },
+  { value: 'operations', label: 'Operations' },
+  { value: 'distribution', label: 'Distribution' },
+  { value: 'content_processing', label: 'Content Processing' },
+  { value: 'content_extraction', label: 'Content Extraction' },
 ];
 
 const systemOptions: SelectOption[] = [
