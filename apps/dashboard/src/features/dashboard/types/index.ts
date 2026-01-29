@@ -1,6 +1,7 @@
 export interface DashboardKPIs {
   totalContent: number;
-  distributionsToday: number;
+  emailsSent: number;
+  smsSent: number;
   openRate: number;
   responseRate: number;
 }

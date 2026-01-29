@@ -8,20 +8,38 @@ async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
     .from('contents')
     .select('*', { count: 'exact', head: true });
 
-  // Get distributions sent in date range
+  // Get emails and SMS sent in date range
   const { startDate, endDate } = filters || {};
-  let distributionsQuery = supabase
+
+  // Query for emails
+  let emailsQuery = supabase
     .from('distributions')
-    .select('*', { count: 'exact', head: true });
+    .select('*', { count: 'exact', head: true })
+    .eq('channel', 'email');
 
   if (startDate) {
-    distributionsQuery = distributionsQuery.gte('sent_at', startDate);
+    emailsQuery = emailsQuery.gte('sent_at', startDate);
   }
   if (endDate) {
-    distributionsQuery = distributionsQuery.lte('sent_at', endDate);
+    emailsQuery = emailsQuery.lte('sent_at', endDate);
   }
 
-  const { count: distributionsToday } = await distributionsQuery;
+  const { count: emailsSent } = await emailsQuery;
+
+  // Query for SMS
+  let smsQuery = supabase
+    .from('distributions')
+    .select('*', { count: 'exact', head: true })
+    .eq('channel', 'sms');
+
+  if (startDate) {
+    smsQuery = smsQuery.gte('sent_at', startDate);
+  }
+  if (endDate) {
+    smsQuery = smsQuery.lte('sent_at', endDate);
+  }
+
+  const { count: smsSent } = await smsQuery;
 
   // Get distribution performance metrics
   const { data: perfData } = await supabase
@@ -47,7 +65,8 @@ async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
 
   return {
     totalContent: totalContent || 0,
-    distributionsToday: distributionsToday || 0,
+    emailsSent: emailsSent || 0,
+    smsSent: smsSent || 0,
     openRate: Math.round(avgOpenRate * 100) / 100,
     responseRate: Math.round(avgResponseRate * 100) / 100,
   };

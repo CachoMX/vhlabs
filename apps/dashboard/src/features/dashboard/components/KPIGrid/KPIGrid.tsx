@@ -10,8 +10,8 @@ interface KPIGridProps {
 export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, isLoading }) => {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {[...Array(5)].map((_, i) => (
           <div key={i} className="animate-pulse">
             <div className="h-32 bg-gray-200 rounded-lg" />
           </div>
@@ -21,16 +21,21 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, isLoading }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       <MetricCard
         label="Total Content"
         value={kpis.totalContent}
         description="Content items in library"
       />
       <MetricCard
-        label="Distributions Today"
-        value={kpis.distributionsToday}
-        description="Messages sent today"
+        label="Emails Sent"
+        value={kpis.emailsSent}
+        description="Email distributions"
+      />
+      <MetricCard
+        label="SMS Sent"
+        value={kpis.smsSent}
+        description="SMS distributions"
       />
       <MetricCard
         label="Open Rate"

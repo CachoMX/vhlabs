@@ -40,7 +40,7 @@ export const DashboardView: React.FC = () => {
       <DashboardFilters filters={filters} onFiltersChange={setFilters} />
 
       <KPIGrid
-        kpis={kpis || { totalContent: 0, distributionsToday: 0, openRate: 0, responseRate: 0 }}
+        kpis={kpis || { totalContent: 0, emailsSent: 0, smsSent: 0, openRate: 0, responseRate: 0 }}
         isLoading={isLoadingKPIs}
       />
 
