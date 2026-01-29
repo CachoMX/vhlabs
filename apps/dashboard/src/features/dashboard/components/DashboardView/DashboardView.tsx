@@ -1,14 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { KPIGrid } from '../KPIGrid/KPIGrid';
 import { SystemHealth } from '../SystemHealth/SystemHealth';
+import { DashboardFilters } from '../DashboardFilters/DashboardFilters';
 import { useGetKPIs } from '../../api/get-kpis';
 import { useGetRecentActivity } from '../../api/get-recent-activity';
 import { useGetSystemHealth } from '../../api/get-system-health';
+import type { DashboardFilters as DashboardFiltersType } from '../../types';
+
+function getDefaultFilters(): DashboardFiltersType {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(today);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return {
+    preset: 'today',
+    startDate: today.toISOString(),
+    endDate: endOfDay.toISOString(),
+  };
+}
 
 export const DashboardView: React.FC = () => {
-  const { data: kpis, isLoading: isLoadingKPIs } = useGetKPIs();
+  const [filters, setFilters] = useState<DashboardFiltersType>(getDefaultFilters());
+  const { data: kpis, isLoading: isLoadingKPIs } = useGetKPIs(filters);
   const { data: activityEvents, isLoading: isLoadingActivity } = useGetRecentActivity();
   const { data: systemHealth, isLoading: isLoadingHealth } = useGetSystemHealth();
 
@@ -20,6 +36,8 @@ export const DashboardView: React.FC = () => {
           Overview of your investor engagement system
         </p>
       </div>
+
+      <DashboardFilters filters={filters} onFiltersChange={setFilters} />
 
       <KPIGrid
         kpis={kpis || { totalContent: 0, distributionsToday: 0, openRate: 0, responseRate: 0 }}

@@ -4,3 +4,9 @@ export interface DashboardKPIs {
   openRate: number;
   responseRate: number;
 }
+
+export interface DashboardFilters {
+  startDate?: string;
+  endDate?: string;
+  preset?: 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'lastMonth' | 'custom';
+}

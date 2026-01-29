@@ -1,20 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { DashboardKPIs } from '../types';
+import type { DashboardKPIs, DashboardFilters } from '../types';
 
-async function fetchKPIs(): Promise<DashboardKPIs> {
+async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
   // Get total content count
   const { count: totalContent } = await supabase
     .from('contents')
     .select('*', { count: 'exact', head: true });
 
-  // Get distributions sent today
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const { count: distributionsToday } = await supabase
+  // Get distributions sent in date range
+  const { startDate, endDate } = filters || {};
+  let distributionsQuery = supabase
     .from('distributions')
-    .select('*', { count: 'exact', head: true })
-    .gte('sent_at', today.toISOString());
+    .select('*', { count: 'exact', head: true });
+
+  if (startDate) {
+    distributionsQuery = distributionsQuery.gte('sent_at', startDate);
+  }
+  if (endDate) {
+    distributionsQuery = distributionsQuery.lte('sent_at', endDate);
+  }
+
+  const { count: distributionsToday } = await distributionsQuery;
 
   // Get distribution performance metrics
   const { data: perfData } = await supabase
@@ -46,10 +53,10 @@ async function fetchKPIs(): Promise<DashboardKPIs> {
   };
 }
 
-export function useGetKPIs() {
+export function useGetKPIs(filters?: DashboardFilters) {
   return useQuery({
-    queryKey: ['dashboard', 'kpis'],
-    queryFn: fetchKPIs,
+    queryKey: ['dashboard', 'kpis', filters],
+    queryFn: () => fetchKPIs(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
