@@ -19,7 +19,7 @@ interface PromptsListProps {
 export function PromptsList({ onEdit, onDuplicate }: PromptsListProps) {
   const [filters, setFilters] = useState<PromptFiltersType>({});
   const [page, _setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 50; // Increased to show all prompts without pagination
 
   const { data, isLoading, error } = useGetPrompts({ filters, page, pageSize });
   const toggleActive = useTogglePromptActive();
