@@ -38,7 +38,7 @@ async function getEngagementTrends(filters: DashboardFilters): Promise<Engagemen
   // Group by date
   const grouped: Record<string, { sent: number; responses: number }> = {};
 
-  data.forEach((dist) => {
+  (data as any[]).forEach((dist) => {
     if (!dist.sent_at) return;
 
     const date = new Date(dist.sent_at).toISOString().split('T')[0];

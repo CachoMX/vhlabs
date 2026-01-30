@@ -26,7 +26,7 @@ async function getContact(id: string): Promise<ContactDetailData> {
   const { data: distributions, error: distributionsError } = await supabase
     .from('distributions')
     .select('*')
-    .eq('ghl_contact_id', contact.ghl_id)
+    .eq('ghl_contact_id', (contact as any).ghl_id)
     .order('created_at', { ascending: false })
     .limit(20);
 

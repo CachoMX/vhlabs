@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle, CardContent, Badge, Tooltip } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardContent, Tooltip } from '@/components/ui';
 import { Users, Info } from 'lucide-react';
 
 interface SegmentData {

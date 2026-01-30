@@ -38,7 +38,7 @@ async function getContactBreakdown(): Promise<ContactBreakdownData> {
     throw new Error(`Failed to fetch segments: ${segmentError.message}`);
   }
 
-  const segments: SegmentData[] = (segmentData || []).map((item: any) => ({
+  const segments: SegmentData[] = ((segmentData as any) || []).map((item: any) => ({
     segment: item.segment,
     count: parseInt(item.count),
     percentage: totalContacts > 0 ? (parseInt(item.count) / totalContacts) * 100 : 0,
@@ -52,7 +52,7 @@ async function getContactBreakdown(): Promise<ContactBreakdownData> {
     throw new Error(`Failed to fetch statuses: ${statusError.message}`);
   }
 
-  const statuses: StatusData[] = (statusData || []).map((item: any) => ({
+  const statuses: StatusData[] = ((statusData as any) || []).map((item: any) => ({
     status: item.investor_status,
     count: parseInt(item.count),
   }));

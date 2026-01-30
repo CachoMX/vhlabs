@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { PageContainer, PageHeader } from '@/components';
 import { Card, Spinner } from '@/components/ui';
-import { ContactsList, useGetContacts, ContactFilters as ContactFiltersComponent } from '@/features/contacts';
-import type { ContactFilters } from '@/features/contacts';
+import { ContactsList, useGetContacts, ContactFilters as ContactFiltersComponent, type ContactFiltersType } from '@/features/contacts';
 
 export function ContactsRoute() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
-  const [filters, setFilters] = useState<ContactFilters>({});
+  const [filters, setFilters] = useState<ContactFiltersType>({});
   const { data, isLoading, error } = useGetContacts({ page, pageSize, filters });
 
   if (error) {
@@ -35,7 +34,7 @@ export function ContactsRoute() {
     setPage(1); // Reset to first page when changing page size
   };
 
-  const handleFiltersChange = (newFilters: ContactFilters) => {
+  const handleFiltersChange = (newFilters: ContactFiltersType) => {
     setFilters(newFilters);
     setPage(1); // Reset to first page when filters change
   };
