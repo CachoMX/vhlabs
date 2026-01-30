@@ -8,8 +8,8 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
       "position": [
-        272,
-        -240
+        -32,
+        -192
       ]
     },
     {
@@ -18,7 +18,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -40,21 +41,21 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        480,
-        -240
+        160,
+        -192
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Check if source_url is a video/audio that needs transcription\nconst content = $input.first().json;\nconst url = content.source_url || '';\n\nconst audioExtensions = ['.mp3', '.wav', '.m4a', '.ogg', '.webm'];\nconst videoExtensions = ['.mp4', '.mov', '.avi', '.mkv'];\nconst needsTranscription = [...audioExtensions, ...videoExtensions].some(ext => url.toLowerCase().includes(ext));\n\n// Check for known video platforms\nconst isYouTube = url.includes('youtube.com') || url.includes('youtu.be');\nconst isVimeo = url.includes('vimeo.com');\nconst isLoom = url.includes('loom.com');\n\nreturn {\n  json: {\n    content_id: content.id,\n    source_url: url,\n    needs_transcription: needsTranscription || isYouTube || isVimeo || isLoom,\n    platform: isYouTube ? 'youtube' : isVimeo ? 'vimeo' : isLoom ? 'loom' : 'direct',\n    description: content.description\n  }\n};"
+        "jsCode": "// Check if content needs transcription based on source_type from S2-01                                                                                                                                                  \n  const content = $input.first().json;                                                                                                                                                                                     \n  const sourceType = content.source_type || '';\n  const url = content.source_url || '';\n\n  // Audio, video, image, and file need processing\n  const needsTranscription = ['audio', 'video', 'image', 'file'].includes(sourceType);\n\n  // Detect platform for external URLs\n  const isSlackFile = url.includes('slack.com') || url.includes('files.slack.com');\n\n  let platform = 'unknown';\n  if (isSlackFile) platform = 'slack';\n  else if (url) platform = 'direct';\n\n  return {\n    json: {\n      content_id: content.id,\n      source_url: url,\n      source_type: sourceType,\n      needs_transcription: needsTranscription,\n      platform: platform,\n      description: content.description\n    }\n  };"
       },
       "id": "2b5406b9-8849-4bd7-b7b1-74a247311693",
       "name": "Check Media Type",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        704,
-        -144
+        352,
+        -192
       ]
     },
     {
@@ -63,7 +64,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -85,8 +87,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        928,
-        -144
+        544,
+        -192
       ]
     },
     {
@@ -98,9 +100,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1152,
-        -240
-      ]
+        1552,
+        784
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -111,8 +114,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1152,
-        -32
+        1248,
+        160
       ]
     },
     {
@@ -122,8 +125,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        1376,
-        -144
+        2144,
+        -320
       ]
     },
     {
@@ -138,8 +141,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1584,
-        -144
+        2352,
+        -320
       ],
       "credentials": {
         "supabaseApi": {
@@ -154,7 +157,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -185,8 +189,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1808,
-        -144
+        2528,
+        -320
       ]
     },
     {
@@ -198,7 +202,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
+              "value": "={{ $credentials.anthropicApi.apiKey }}"
             },
             {
               "name": "anthropic-version",
@@ -222,34 +226,34 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2032,
-        -240
+        2848,
+        -416
       ]
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst mergeData = $node['Merge'].first().json;\n\nconst cleanedTranscript = response.content?.[0]?.text || mergeData.transcript_raw;\n\nreturn {\n  json: {\n    content_id: mergeData.content_id,\n    transcript_raw: mergeData.transcript_raw,\n    transcript_cleaned: cleanedTranscript,\n    was_cleaned: true\n  }\n};"
+        "jsCode": "const response = $input.first().json;\n  const mergeData = $('Merge').first().json;\n\n  const cleanedTranscript = response.content?.[0]?.text || mergeData.transcript_raw;\n\n  return {\n    json: {\n      content_id: mergeData.content_id,\n      transcript_raw: mergeData.transcript_raw,\n      transcript_cleaned: cleanedTranscript,\n      was_cleaned: true\n    }\n  };"
       },
       "id": "77eff8c4-e740-4133-aca2-583337f50a4b",
       "name": "Use Cleaned Transcript",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2256,
-        -240
+        3104,
+        -416
       ]
     },
     {
       "parameters": {
-        "jsCode": "const mergeData = $node['Merge'].first().json;\n\nreturn {\n  json: {\n    content_id: mergeData.content_id,\n    transcript_raw: mergeData.transcript_raw,\n    transcript_cleaned: mergeData.transcript_raw,\n    was_cleaned: false\n  }\n};"
+        "jsCode": "const mergeData = $('Merge').first().json;\n\n  return {\n    json: {\n      content_id: mergeData.content_id,\n      transcript_raw: mergeData.transcript_raw,\n      transcript_cleaned: mergeData.transcript_raw,\n      was_cleaned: false\n    }\n  };"
       },
       "id": "cedffbee-20eb-41c0-bba2-6e9abdd5fe12",
       "name": "Skip Cleaning",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2256,
-        -32
+        2880,
+        -160
       ]
     },
     {
@@ -259,14 +263,16 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        2464,
-        -144
+        3904,
+        -288
       ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"transcript_raw\": {{ JSON.stringify($json.transcript_cleaned) }}\n}",
@@ -277,9 +283,15 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2688,
-        -144
-      ]
+        3536,
+        -672
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
     },
     {
       "parameters": {
@@ -290,19 +302,19 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        704,
-        -336
+        880,
+        -912
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Return the cleaned transcript to S2-02\nconst finalData = $node['Merge Final'].first().json;\n\nreturn {\n  json: {\n    content_id: finalData.content_id,\n    transcript_raw: finalData.transcript_raw,\n    transcript_cleaned: finalData.transcript_cleaned,\n    was_cleaned: finalData.was_cleaned\n  }\n};"
+        "jsCode": "const finalData = $('Merge Final').first().json;\n\n  return {\n    json: {\n      content_id: finalData.content_id,\n      transcript_raw: finalData.transcript_raw,\n      transcript_cleaned: finalData.transcript_cleaned,\n      was_cleaned: finalData.was_cleaned\n    }\n  };"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2896,
-        -144
+        3904,
+        -576
       ],
       "id": "19ff9b22-23a7-4a08-a703-c596cfb2ba42",
       "name": "Return Result to S2-02"
@@ -312,11 +324,337 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3072,
-        -400
+        3968,
+        -912
       ],
       "id": "d46e6178-8eda-4bb4-a192-8c9b2047a054",
       "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.source_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        784,
+        -400
+      ],
+      "id": "4499b093-9c95-464b-a52c-5b1d4cf2892f",
+      "name": "Download Slack File",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "JPVlqwuI9LJf8I1X",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Check Media Type').first().json.source_type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ef112abe-ea60-442c-bb80-5f907ba5377f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "169aed80-4a4f-4691-89f1-8816961301a2",
+                    "leftValue": "={{ $('Check Media Type').first().json.source_type }}",
+                    "rightValue": "video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bcfc7415-c30a-4738-9c19-7ccaf78273cb",
+                    "leftValue": "={{ $('Check Media Type').first().json.source_type }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9a2ea705-246c-41a0-b779-fcd7cd5b6c45",
+                    "leftValue": "={{ $('Check Media Type').first().json.source_type }}",
+                    "rightValue": "file",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        -432
+      ],
+      "id": "407bcab3-6c07-4068-8c7b-8748bbca54f9",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1232,
+        -720
+      ],
+      "id": "a25eb5f6-f5c2-4cf2-a0e6-e82841cf5600",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "YhsyRoujwMqtLFde",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "text": "You are a content analyzer for a real estate investment platform.                                                                                                                                                        \n\n  Analyze this image and provide:                                                                                                                                                                                             \n  1. **EXTRACTED TEXT**: Copy ALL visible text exactly as written (preserve formatting, numbers, dates, names, addresses, dollar amounts). If no text, write \"None\".                                                       \n  \n  2. **CONTENT SUMMARY**: One paragraph describing what this image shows and its key takeaways.\n\n  3. **KEY DATA POINTS**: List any important numbers, dates, names, addresses, or financial figures found.\n\n  Be thorough but concise. Focus on information relevant to real estate investing, deals, properties, or business communication.",
+        "inputType": "base64",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1232,
+        -560
+      ],
+      "id": "feb3a955-57d6-403c-ba24-93e251c6e1d2",
+      "name": "Analyze image",
+      "credentials": {
+        "openAiApi": {
+          "id": "YhsyRoujwMqtLFde",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $binary.data.mimeType }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "a48cda6d-f90c-4307-8db5-cfa474da7a68"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "351dfce9-d4ca-471c-a4fd-14007e0b2d7f",
+                    "leftValue": "={{ $binary.data.mimeType }}",
+                    "rightValue": "csv",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1184,
+        -272
+      ],
+      "id": "72b395e9-3ac9-4fa9-bca0-18647bc79c40",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1424,
+        -336
+      ],
+      "id": "585adba1-37dd-4e5d-934f-269c41cfb9d3",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1408,
+        -112
+      ],
+      "id": "4208ac23-ac08-4c02-8da8-629e30269b5d",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n  const meta = $('Check Media Type').first().json;\n\n  return {\n    json: {\n      content_id: meta.content_id,\n      transcript_raw: input.text || '',\n      source_type: meta.source_type\n    }\n  };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        -592
+      ],
+      "id": "103898cc-d2c3-4399-bbfd-9e5e393c4f49",
+      "name": "Normalize Audio/Video"
+    },
+    {
+      "parameters": {
+        "jsCode": " const input = $input.first().json;\n  const meta = $('Check Media Type').first().json;\n\n  const text = input.content?.[0]?.text || JSON.stringify(input);\n\n  return {\n    json: {\n      content_id: meta.content_id,\n      transcript_raw: text,\n      source_type: meta.source_type\n    }\n  };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        -496
+      ],
+      "id": "534ecb74-68db-4c69-9acf-539a2b03228a",
+      "name": "Normalize Image"
+    },
+    {
+      "parameters": {
+        "jsCode": " const input = $input.first().json;\n  const meta = $('Check Media Type').first().json;\n\n  return {\n    json: {\n      content_id: meta.content_id,\n      transcript_raw: input.text || '',\n      source_type: meta.source_type\n    }\n  };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        -320
+      ],
+      "id": "bc81c1cd-aeb4-47f4-ad83-e1bb48e363be",
+      "name": "Normalize PDF"
+    },
+    {
+      "parameters": {
+        "jsCode": " const items = $input.all();\n  const meta = $('Check Media Type').first().json;\n\n  const text = items.map(item => Object.values(item.json).join(', ')).join('\\n');\n\n  return {\n    json: {\n      content_id: meta.content_id,\n      transcript_raw: text,\n      source_type: meta.source_type\n    }\n  };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        -112
+      ],
+      "id": "150632bf-b5f0-43d6-bceb-af1115b450b3",
+      "name": "Normalize CSV"
     }
   ],
   "pinData": {},
@@ -365,7 +703,7 @@
       "main": [
         [
           {
-            "node": "Transcribe Audio/Video",
+            "node": "Download Slack File",
             "type": "main",
             "index": 0
           }
@@ -381,13 +719,7 @@
     },
     "Transcribe Audio/Video": {
       "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Use Description as Transcript": {
@@ -396,7 +728,7 @@
           {
             "node": "Merge",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -517,14 +849,164 @@
           }
         ]
       ]
+    },
+    "Download Slack File": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Normalize CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Normalize PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Normalize Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "Normalize Audio/Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Audio/Video": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Image": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize CSV": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "81605eaf-9849-482c-90f0-be0e4b2f3b58",
+  "versionId": "507d73c1-2b57-4b70-a7d2-932464ff842e",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
   "id": "UoQhCBOzMnGgpDEd",

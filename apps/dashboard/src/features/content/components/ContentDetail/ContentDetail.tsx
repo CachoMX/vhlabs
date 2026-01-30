@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useGetContent } from '../../api/get-content';
 import { useGetContentHooks } from '../../api/get-content-hooks';
 import { useGetContentDistributions } from '../../api/get-content-distributions';
 import { useUpdateContent } from '../../api/update-content';
+import { CreateDistributionModal } from '@/features/distributions';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, Select, type SelectOption, Spinner } from '@/components/ui';
 
 interface ContentDetailProps {
@@ -26,6 +28,7 @@ const priorityOptions: SelectOption[] = [
 
 export function ContentDetail({ contentId }: ContentDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showDistributeModal, setShowDistributeModal] = useState(false);
   const [editData, setEditData] = useState<{
     title: string;
     description: string;
@@ -138,11 +141,24 @@ export function ContentDetail({ contentId }: ContentDetailProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Content Details</CardTitle>
-            {!isEditing && (
-              <Button variant="secondary" size="sm" onClick={handleEdit}>
-                Edit
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {!isEditing && content.status === 'ready' && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowDistributeModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  Distribute
+                </Button>
+              )}
+              {!isEditing && (
+                <Button variant="secondary" size="sm" onClick={handleEdit}>
+                  Edit
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -344,6 +360,18 @@ export function ContentDetail({ contentId }: ContentDetailProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Distribution Modal */}
+      {showDistributeModal && (
+        <CreateDistributionModal
+          content={content}
+          onClose={() => setShowDistributeModal(false)}
+          onSuccess={() => {
+            // Refresh distributions
+            setShowDistributeModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

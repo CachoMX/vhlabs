@@ -13,7 +13,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -656,
+        -624,
         112
       ],
       "webhookId": "slack-reaction"
@@ -37,7 +37,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -84,7 +85,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -143,11 +145,17 @@
       "position": [
         224,
         304
-      ]
+      ],
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "JPVlqwuI9LJf8I1X",
+          "name": "Slack account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst reaction = $('Parse Slack Event').first().json.reaction;\n\n// Reaction to segment mapping\nconst reactionMap = {\n  'house': 're_investors',\n  'house_with_garden': 'house_buyers', \n  'dog': 'bird_doggers',\n  'handshake': 'jv_partners',\n  'books': 'coaching_students',\n  'moneybag': 'wholesalers',\n  'bank': 'lenders',\n  'memo': 'sellers',\n  'question': 'general_leads',\n  // Priority/featured flags\n  'fire': '_priority',\n  'star': '_featured'\n};\n\nconst mapped = reactionMap[reaction] || 'general_leads';\nconst isPriority = reaction === 'fire';\nconst isFeatured = reaction === 'star';\nconst segment = mapped.startsWith('_') ? 'general_leads' : mapped;\n\n// Extract URL from message if present\nconst messageText = input.messages?.[0]?.text || '';\nconst urlMatch = messageText.match(/<(https?:\\/\\/[^>|]+)/)?.[1] || messageText;\n\nreturn {\n  json: {\n    segment: segment,\n    is_priority: isPriority,\n    is_featured: isFeatured,\n    reaction: reaction,\n    source_url: urlMatch,\n    message_text: messageText,\n    channel: $('Parse Slack Event').first().json.channel,\n    message_ts: $('Parse Slack Event').first().json.message_ts,\n    tagged_by: $('Parse Slack Event').first().json.user\n  }\n};"
+        "jsCode": "const input = $input.first().json;                                    const reaction = $('Parse Slack Event').first().json.reaction;\nconst message = input.messages?.[0];                                                                                                        \n  // Reaction to segment mapping\nconst reactionMap = {\n    'house': 're_investors',\n    'house_with_garden': 'house_buyers',\n    'dog': 'bird_doggers',\n    'handshake': 'jv_partners',\n    'books': 'coaching_students',\n    'moneybag': 'wholesalers',\n    'bank': 'lenders',\n    'memo': 'sellers',\n    'question': 'general_leads',\n    'fire': '_priority',\n    'star': '_featured'\n};\n\nconst mapped = reactionMap[reaction] || 'general_leads';\nconst isPriority = reaction === 'fire';\nconst isFeatured = reaction === 'star';\nconst segment = mapped.startsWith('_') ? 'general_leads' : mapped;\n\n  // Detectar archivo en el mensaje\nconst file = message.files?.[0];\n\n  // Determinar source_url y source_type\nconst messageText = message.text || '';\nlet source_url = '';\nlet source_type = 'text';\n\nif (file) {\n    source_url = file.url_private_download || file.url_private;\n\n    const mime = file.mimetype || '';\n    if (mime.startsWith('audio/')) {\n      source_type = 'audio';\n    } else if (mime.startsWith('video/')) {\n      source_type = 'video';\n    } else if (mime.startsWith('image/')) {\n      source_type = 'image';\n    } else {\n      source_type = 'file';\n    }\n  } else {\n  \nconst urlMatch = messageText.match(/<(https?:\\/\\/[^>|]+)/)?.[1];\n    source_url = urlMatch || messageText;\n    source_type = urlMatch ? 'link' : 'text';\n}\n\nreturn {\n    json: {\n      segment: segment,\n      is_priority: isPriority,\n      is_featured: isFeatured,\n      reaction: reaction,\n      source_url: source_url,\n      source_type: source_type,\n      message_text: messageText,\n      channel: $('Parse Slack Event').first().json.channel,\n      message_ts: $('Parse Slack Event').first().json.message_ts,\n      tagged_by: $('Parse Slack Event').first().json.user\n  }\n};"
       },
       "id": "8b4a0b40-5d28-4ec9-b0d3-479bf0be02c6",
       "name": "Map Reaction to Segment",
@@ -164,9 +172,18 @@
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"source_url\": \"{{ $json.source_url }}\",\n  \"source_type\": \"call\",\n  \"description\": \"{{ $json.message_text.substring(0, 500) }}\",\n  \"slack_channel_id\": \"{{ $json.channel }}\",\n  \"slack_message_ts\": \"{{ $json.message_ts }}\",\n  \"slack_reactions\": [{\n    \"reaction\": \"{{ $json.reaction }}\",\n    \"user\": \"{{ $json.tagged_by }}\",\n    \"timestamp\": \"{{ new Date().toISOString() }}\"\n  }],\n  \"audiences\": [\"{{ $json.segment }}\"],\n  \"is_featured\": {{ $json.is_featured }},\n  \"priority\": \"{{ $json.is_priority ? 'high' : 'medium' }}\",\n  \"status\": \"pending\"\n}",
+        "jsonBody": "={\n    \"source_url\": \"{{ $json.source_url }}\",\n    \"source_type\": \"{{ $json.source_type }}\",\n    \"description\": \"{{ $json.message_text.substring(0, 500) }}\",\n    \"slack_channel_id\": \"{{ $json.channel }}\",\n    \"slack_message_ts\": \"{{ $json.message_ts }}\",\n    \"slack_reactions\": [{\n      \"reaction\": \"{{ $json.reaction }}\",\n      \"user\": \"{{ $json.tagged_by }}\",\n      \"timestamp\": \"{{ new Date().toISOString() }}\"\n    }],\n    \"audiences\": [\"{{ $json.segment }}\"],\n    \"is_featured\": {{ $json.is_featured }},\n    \"priority\": \"{{ $json.is_priority ? 'high' : 'medium' }}\",\n    \"status\": \"pending\"\n  }",
         "options": {}
       },
       "id": "34208a32-7d2a-46e0-99f7-80e4d7bc91d9",
@@ -237,7 +254,8 @@
       "position": [
         1104,
         464
-      ]
+      ],
+      "disabled": true
     }
   ],
   "pinData": {},
@@ -350,11 +368,11 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "661e9e04-d9b1-4e5e-806b-bf0ca01861e7",
+  "versionId": "732967a1-3e65-4afe-b8ef-b8b23a808d80",
   "meta": {
     "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },

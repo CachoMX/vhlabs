@@ -14,35 +14,15 @@
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.id }}&select=*",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"processing\",\n  \"processing_started_at\": \"{{ new Date().toISOString() }}\"\n}",
-        "options": {}
-      },
-      "id": "5c5395f5-1e6f-4fdb-a9fd-e8a60e9bdee3",
-      "name": "Update Status: Processing",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -640,
-        112
-      ],
-      "credentials": {
-        "supabaseApi": {
-          "id": "GwDYGTMRM5wfg7Io",
-          "name": "VH Labs Supabase"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}&select=*",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
         "options": {}
       },
       "id": "fb765b1d-45f2-46a0-9069-13d59489277b",
@@ -66,7 +46,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -120,17 +101,6 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "c265aa28-2319-4b83-8968-0866ea8ed9bd",
-      "name": "Merge",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        224,
-        112
-      ]
-    },
-    {
       "parameters": {
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/prompts?prompt_id=eq.content_agent&is_active=eq.true&limit=1",
         "authentication": "predefinedCredentialType",
@@ -163,7 +133,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "={{ $vars.ANTHROPIC_API_KEY }}"
+              "value": "={{ $credentials.anthropicApi.apiKey }}"
             },
             {
               "name": "anthropic-version",
@@ -177,7 +147,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($node['Get Content Agent Prompt'].json[0]?.content + '\\n\\nTranscript:\\n' + $node['Merge'].json.transcript) }}\n    }\n  ]\n}",
+        "jsonBody": "={{ JSON.stringify({\"model\": \"claude-sonnet-4-20250514\", \"max_tokens\": 4096, \"system\": \"You are a JSON-only content extraction agent. You MUST respond with ONLY valid JSON, no text, no markdown,    no explanations. If you cannot extract data, return an empty JSON structure.\", \"messages\": [{\"role\": \"user\", \"content\": $('Get Content Agent Prompt').first().json[0]?.content + '\\n\\nTranscript:\\n'   + $('Extract Transcript from S2-03').first().json.transcript}]}) }} ",
         "options": {
           "timeout": 120000
         }
@@ -199,7 +169,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst contentId = $node['Merge'].first().json.content_id;\n\ntry {\n  const text = response.content[0].text;\n  \n  // Extract JSON from response (handle markdown code blocks)\n  let jsonStr = text;\n  if (text.includes('```json')) {\n    jsonStr = text.split('```json')[1].split('```')[0];\n  } else if (text.includes('```')) {\n    jsonStr = text.split('```')[1].split('```')[0];\n  }\n  \n  const parsed = JSON.parse(jsonStr.trim());\n  \n  // Calculate content score\n  let score = 50;\n  score += Math.min((parsed.hooks?.length || 0) * 5, 25);\n  score += Math.min((parsed.clips?.length || 0) * 5, 15);\n  if (parsed.metadata?.content_type === 'case_study') score += 10;\n  \n  const priority = score > 80 ? 'high' : score > 50 ? 'medium' : 'low';\n  \n  return {\n    json: {\n      content_id: contentId,\n      hooks: parsed.hooks || [],\n      clips: parsed.clips || [],\n      transcript_structured: parsed.transcript || {},\n      metadata: parsed.metadata || {},\n      score: score,\n      priority: priority,\n      raw_response: text,\n      success: true\n    }\n  };\n} catch (error) {\n  return {\n    json: {\n      content_id: contentId,\n      success: false,\n      error: error.message,\n      raw_response: response.content?.[0]?.text\n    }\n  };\n}"
+        "jsCode": "const response = $input.first().json;\n  const contentId = $('Extract Transcript from S2-03').first().json.content_id;\n \n  try {\n    const text = response.content[0].text;\n\n    let jsonStr = text;\n    if (text.includes('```json')) {\n      jsonStr = text.split('```json')[1].split('```')[0];\n    } else if (text.includes('```')) {\n      jsonStr = text.split('```')[1].split('```')[0];\n    }\n\n    const parsed = JSON.parse(jsonStr.trim());\n\n    let score = 50;\n    score += Math.min((parsed.hooks?.length || 0) * 5, 25);\n    score += Math.min((parsed.clips?.length || 0) * 5, 15);\n    if (parsed.metadata?.content_type === 'case_study') score += 10;\n\n    const priority = score > 80 ? 'high' : score > 50 ? 'medium' : 'low';\n\n    return {\n      json: {\n        content_id: contentId,\n        hooks: parsed.hooks || [],\n        clips: parsed.clips || [],\n        transcript_structured: parsed.transcript || {},\n        metadata: parsed.metadata || {},\n        score: score,\n        priority: priority,\n        raw_response: text,\n        success: true\n      }\n    };\n  } catch (error) {\n    return {\n      json: {\n        content_id: contentId,\n        success: false,\n        error: error.message,\n        raw_response: response.content?.[0]?.text\n      }\n    };\n  }"
       },
       "id": "ea30bdb1-6d73-44e8-a502-f3790d5a7c63",
       "name": "Parse AI Response",
@@ -216,7 +186,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -248,6 +219,15 @@
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.content_id }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"hooks\": {{ JSON.stringify($json.hooks) }},\n  \"clips\": {{ JSON.stringify($json.clips) }},\n  \"transcript_structured\": {{ JSON.stringify($json.transcript_structured) }},\n  \"ai_metadata\": {{ JSON.stringify($json.metadata) }},\n  \"score\": {{ $json.score }},\n  \"priority\": \"{{ $json.priority }}\",\n  \"status\": \"ready\",\n  \"processing_completed_at\": \"{{ new Date().toISOString() }}\"\n}",
@@ -276,7 +256,7 @@
         "nodeCredentialType": "supabaseApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"pending\",\n  \"processing_error\": \"{{ $json.error }}\",\n  \"processing_completed_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "jsonBody": "={\n  \"status\": \"pending\",\n  \"processing_error\": {{ JSON.stringify($json.error || 'Unknown error') }},\n  \"processing_completed_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
       "id": "e0600d6a-824f-4654-ac37-2f4a7c1fec64",
@@ -296,7 +276,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Insert hooks into hooks table\nconst hooks = $json.hooks || [];\nconst contentId = $json.content_id;\n\nreturn hooks.map((hook, index) => ({\n  json: {\n    content_id: contentId,\n    text: hook.text,\n    timestamp: hook.timestamp || null,\n    hook_type: hook.hook_type || 'insight'\n  }\n}));"
+        "jsCode": "const hooks = $('Parse AI Response').first().json.hooks || [];\n  const contentId = $('Parse AI Response').first().json.content_id;\n\n  if (hooks.length === 0) {\n    return [{ json: { content_id: contentId, skip_hooks: true } }];\n  }\n\n  return hooks.map((hook, index) => ({\n    json: {\n      content_id: contentId,\n      text: hook.text,\n      timestamp: hook.timestamp || null,\n      hook_type: hook.hook_type || 'insight'\n    }\n  }));"
       },
       "id": "07e6cd6f-5bd3-4bd9-a866-4b94e68aa417",
       "name": "Prepare Hooks for Insert",
@@ -313,6 +293,15 @@
         "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/hooks",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"content_id\": \"{{ $json.content_id }}\",\n  \"text\": {{ JSON.stringify($json.text) }},\n  \"timestamp\": {{ $json.timestamp ? '\"' + $json.timestamp + '\"' : 'null' }},\n  \"hook_type\": \"{{ $json.hook_type }}\"\n}",
@@ -323,8 +312,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1760,
-        0
+        1984,
+        -32
       ],
       "credentials": {
         "supabaseApi": {
@@ -368,11 +357,47 @@
     },
     {
       "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contents?id=eq.{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"processing\",\n  \"processing_started_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "31fbf9ba-7c47-4a8e-9e6e-7e98b945abc7",
+      "name": "Update Status: Processing1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        112
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GwDYGTMRM5wfg7Io",
+          "name": "VH Labs Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
         "workflowId": {
           "__rl": true,
-          "mode": "id",
-          "value": "=hXNbeBWOGyYbcdww",
-          "cachedResultName": "=hXNbeBWOGyYbcdww"
+          "value": "hXNbeBWOGyYbcdww",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/hXNbeBWOGyYbcdww",
+          "cachedResultName": "VH Labs — S3-01: Distribution Router"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -387,11 +412,72 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1968,
-        0
+        2096,
+        240
       ],
-      "id": "6486d861-ff0e-4d5d-bec6-a20c88edf95f",
-      "name": "Call S3-01: Distribution Router"
+      "id": "ede691a4-a25e-4a3b-81e8-08aed1522ddc",
+      "name": "Call 'S3-01: Distribution Router'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "hXNbeBWOGyYbcdww",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/hXNbeBWOGyYbcdww",
+          "cachedResultName": "VH Labs — S3-01: Distribution Router"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2192,
+        -32
+      ],
+      "id": "dda355e8-087e-4cb1-9683-ac0297a0387f",
+      "name": "Call 'S3-01: Distribution Router'1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "74c8ab4f-c710-49b2-bca0-ac315662ed94",
+              "leftValue": "={{ $json.skip_hooks }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1760,
+        32
+      ],
+      "id": "5760fc58-18c9-4312-9114-1c00758c9315",
+      "name": "Empty Skip Hooks"
     }
   ],
   "pinData": {},
@@ -400,18 +486,7 @@
       "main": [
         [
           {
-            "node": "Update Status: Processing",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Status: Processing": {
-      "main": [
-        [
-          {
-            "node": "Get Content Record",
+            "node": "Update Status: Processing1",
             "type": "main",
             "index": 0
           }
@@ -456,7 +531,7 @@
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Get Content Agent Prompt",
             "type": "main",
             "index": 0
           }
@@ -464,17 +539,6 @@
       ]
     },
     "Use Existing Transcript": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge": {
       "main": [
         [
           {
@@ -551,7 +615,7 @@
       "main": [
         [
           {
-            "node": "Insert Hooks",
+            "node": "Empty Skip Hooks",
             "type": "main",
             "index": 0
           }
@@ -573,7 +637,7 @@
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Get Content Agent Prompt",
             "type": "main",
             "index": 0
           }
@@ -584,7 +648,36 @@
       "main": [
         [
           {
-            "node": "Call S3-01: Distribution Router",
+            "node": "Call 'S3-01: Distribution Router'1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status: Processing1": {
+      "main": [
+        [
+          {
+            "node": "Get Content Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empty Skip Hooks": {
+      "main": [
+        [
+          {
+            "node": "Insert Hooks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call 'S3-01: Distribution Router'",
             "type": "main",
             "index": 0
           }
@@ -596,7 +689,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "078438cc-952a-44c1-a27e-25334e673ba2",
+  "versionId": "8bec1c8b-54f7-4d43-90e8-fe08c6bdbcc5",
   "meta": {
     "instanceId": "ff009ecb14f3e5529aafdff9e0e7520ceefecd7af64a47e24c56f961b0a84562"
   },
