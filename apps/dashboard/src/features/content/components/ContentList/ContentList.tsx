@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ColumnDef } from '@tanstack/react-table';
-import { Eye, Archive } from 'lucide-react';
+import { Eye, Archive, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { DataTable } from '@/components/DataTable';
 import { Badge, Button, EmptyState, SkeletonTable, Card } from '@/components/ui';
 import { ContentFilters } from '../ContentFilters/ContentFilters';
 import { useGetContents } from '../../api/get-contents';
 import { useArchiveContent } from '../../api/archive-content';
+import { downloadCSV } from '@/utils/export';
 import type { ContentFilters as ContentFiltersType } from '../../types';
 import type { Database } from '@/types/database.types';
 
@@ -33,7 +34,7 @@ export function ContentList({ onViewDetails }: ContentListProps) {
     };
   });
 
-  const [page, _setPage] = useState(() => {
+  const [page, setPage] = useState(() => {
     const pageParam = searchParams.get('page');
     return pageParam ? parseInt(pageParam, 10) : 1;
   });
@@ -63,6 +64,28 @@ export function ContentList({ onViewDetails }: ContentListProps) {
         error: 'Failed to archive content. Please try again.',
       }
     );
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleExport = () => {
+    if (!data?.data) return;
+
+    const exportData = data.data.map(content => ({
+      'Content Preview': content.raw_text ? content.raw_text.substring(0, 200) : '',
+      'Status': content.status || '',
+      'Source Type': content.source_type || '',
+      'Source URL': content.source_url || '',
+      'Audience': Array.isArray(content.audiences) ? content.audiences.join(', ') : '',
+      'Score': content.score || 0,
+      'Priority': content.priority || '',
+      'Created': content.created_at || '',
+    }));
+
+    const timestamp = new Date().toISOString().split('T')[0];
+    downloadCSV(exportData, `content-${timestamp}`);
   };
 
   const getStatusVariant = (status: string): 'default' | 'success' | 'warning' | 'error' | 'info' => {
@@ -97,20 +120,25 @@ export function ContentList({ onViewDetails }: ContentListProps) {
 
   const columns: ColumnDef<Content>[] = [
     {
-      accessorKey: 'title',
-      header: 'Title',
-      cell: ({ row }) => (
-        <div className="max-w-md">
-          <div className="font-medium text-gray-900 truncate">
-            {row.original.title || 'Untitled'}
-          </div>
-          {row.original.description && (
-            <div className="text-sm text-gray-500 truncate mt-1">
-              {row.original.description}
+      accessorKey: 'raw_text',
+      header: 'Content',
+      cell: ({ row }) => {
+        const preview = row.original.raw_text
+          ? row.original.raw_text.substring(0, 100) + (row.original.raw_text.length > 100 ? '...' : '')
+          : 'No content';
+        return (
+          <div className="max-w-md">
+            <div className="font-medium text-gray-900 line-clamp-2">
+              {preview}
             </div>
-          )}
-        </div>
-      ),
+            {row.original.source_url && (
+              <div className="text-xs text-gray-500 truncate mt-1">
+                Source: {row.original.source_url}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'source_type',
@@ -216,23 +244,46 @@ export function ContentList({ onViewDetails }: ContentListProps) {
     <div className="space-y-6">
       <ContentFilters filters={filters} onFiltersChange={setFilters} />
 
-      {isLoading ? (
-        <Card className="p-6">
+      <Card className="p-6">
+        {data && (
+          <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              Total Content: <span className="font-semibold">{data.total.toLocaleString()}</span>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExport}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
+        )}
+
+        {isLoading ? (
           <SkeletonTable rows={10} />
-        </Card>
-      ) : (
-        <DataTable
-          data={data?.data || []}
-          columns={columns}
-          pageSize={pageSize}
-          emptyState={
-            <EmptyState
-              title="No content found"
-              description="Try adjusting your filters or create new content."
-            />
-          }
-        />
-      )}
+        ) : (
+          <DataTable
+            data={data?.data || []}
+            columns={columns}
+            pageSize={pageSize}
+            pagination={{
+              currentPage: page,
+              pageSize,
+              totalItems: data?.total || 0,
+              onPageChange: handlePageChange,
+            }}
+            emptyState={
+              <EmptyState
+                title="No content found"
+                description="Try adjusting your filters or create new content."
+              />
+            }
+          />
+        )}
+      </Card>
     </div>
   );
 }
