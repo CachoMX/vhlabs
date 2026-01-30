@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageContainer, PageHeader } from '@/components';
 import { Card, Spinner, Button } from '@/components/ui';
-import { ContactsList, useGetContacts, ContactFilters as ContactFiltersComponent, type ContactFiltersType } from '@/features/contacts';
+import { ContactsList, useGetContacts, exportContacts, ContactFilters as ContactFiltersComponent, type ContactFiltersType } from '@/features/contacts';
 import { downloadCSV } from '@/utils/export';
 
 export function ContactsRoute() {
@@ -102,22 +103,32 @@ export function ContactsRoute() {
     setPage(1); // Reset to first page when filters change
   };
 
-  const handleExport = () => {
-    if (!data?.data) return;
+  const handleExport = async () => {
+    try {
+      toast.loading('Exporting all contacts...', { id: 'export' });
 
-    const exportData = data.data.map(contact => ({
-      'Name': `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
-      'Email': contact.email || '',
-      'Phone': contact.phone || '',
-      'Segment': contact.segment_name || '',
-      'Status': contact.status_name || '',
-      'Score': contact.score || 0,
-      'Last Touchpoint': contact.last_touchpoint_at || '',
-      'Total Touchpoints': contact.touchpoint_count || 0,
-    }));
+      // Fetch ALL contacts with current filters (no pagination)
+      const allContacts = await exportContacts(filters);
 
-    const timestamp = new Date().toISOString().split('T')[0];
-    downloadCSV(exportData, `contacts-${timestamp}`);
+      const exportData = allContacts.map(contact => ({
+        'Name': `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+        'Email': contact.email || '',
+        'Phone': contact.phone || '',
+        'Segment': contact.segment_name || '',
+        'Status': contact.status_name || '',
+        'Score': contact.score || 0,
+        'Last Touchpoint': contact.last_touchpoint_at || '',
+        'Total Touchpoints': contact.touchpoint_count || 0,
+      }));
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      downloadCSV(exportData, `contacts-${timestamp}`);
+
+      toast.success(`Exported ${exportData.length.toLocaleString()} contacts`, { id: 'export' });
+    } catch (error) {
+      toast.error('Failed to export contacts', { id: 'export' });
+      console.error('Export error:', error);
+    }
   };
 
   return (

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { DataTable } from '@/components/DataTable';
 import { Badge, Button, EmptyState, SkeletonTable, Card } from '@/components/ui';
 import { ContentFilters } from '../ContentFilters/ContentFilters';
-import { useGetContents } from '../../api/get-contents';
+import { useGetContents, exportContents } from '../../api/get-contents';
 import { useArchiveContent } from '../../api/archive-content';
 import { downloadCSV } from '@/utils/export';
 import type { ContentFilters as ContentFiltersType } from '../../types';
@@ -70,22 +70,34 @@ export function ContentList({ onViewDetails }: ContentListProps) {
     setPage(newPage);
   };
 
-  const handleExport = () => {
-    if (!data?.data) return;
+  const handleExport = async () => {
+    try {
+      toast.loading('Exporting all content...', { id: 'export' });
 
-    const exportData = data.data.map(content => ({
-      'Content Preview': content.raw_text ? content.raw_text.substring(0, 200) : '',
-      'Status': content.status || '',
-      'Source Type': content.source_type || '',
-      'Source URL': content.source_url || '',
-      'Audience': Array.isArray(content.audiences) ? content.audiences.join(', ') : '',
-      'Score': content.score || 0,
-      'Priority': content.priority || '',
-      'Created': content.created_at || '',
-    }));
+      // Fetch ALL content with current filters (no pagination)
+      const allContent = await exportContents(filters);
 
-    const timestamp = new Date().toISOString().split('T')[0];
-    downloadCSV(exportData, `content-${timestamp}`);
+      const exportData = allContent.map(content => ({
+        'Title': content.title || '',
+        'Description': content.description || '',
+        'Transcript Preview': content.transcript_raw ? content.transcript_raw.substring(0, 200) : '',
+        'Status': content.status || '',
+        'Source Type': content.source_type || '',
+        'Source URL': content.source_url || '',
+        'Audience': Array.isArray(content.audiences) ? content.audiences.join(', ') : '',
+        'Score': content.score || 0,
+        'Priority': content.priority || '',
+        'Created': content.created_at || '',
+      }));
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      downloadCSV(exportData, `content-${timestamp}`);
+
+      toast.success(`Exported ${exportData.length.toLocaleString()} content items`, { id: 'export' });
+    } catch (error) {
+      toast.error('Failed to export content', { id: 'export' });
+      console.error('Export error:', error);
+    }
   };
 
   const getStatusVariant = (status: string): 'default' | 'success' | 'warning' | 'error' | 'info' => {
@@ -120,19 +132,23 @@ export function ContentList({ onViewDetails }: ContentListProps) {
 
   const columns: ColumnDef<Content>[] = [
     {
-      accessorKey: 'raw_text',
+      accessorKey: 'title',
       header: 'Content',
       cell: ({ row }) => {
-        const preview = row.original.raw_text
-          ? row.original.raw_text.substring(0, 100) + (row.original.raw_text.length > 100 ? '...' : '')
-          : 'No content';
+        const title = row.original.title || 'Untitled';
+        const preview = row.original.transcript_raw
+          ? row.original.transcript_raw.substring(0, 80) + (row.original.transcript_raw.length > 80 ? '...' : '')
+          : row.original.description || 'No content';
         return (
           <div className="max-w-md">
-            <div className="font-medium text-gray-900 line-clamp-2">
+            <div className="font-medium text-gray-900 truncate">
+              {title}
+            </div>
+            <div className="text-sm text-gray-500 line-clamp-2 mt-1">
               {preview}
             </div>
             {row.original.source_url && (
-              <div className="text-xs text-gray-500 truncate mt-1">
+              <div className="text-xs text-gray-400 truncate mt-1">
                 Source: {row.original.source_url}
               </div>
             )}

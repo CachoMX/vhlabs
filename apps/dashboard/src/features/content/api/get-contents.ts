@@ -66,3 +66,37 @@ export function useGetContents(params: GetContentsParams = {}) {
     queryFn: () => getContents(params),
   });
 }
+
+/**
+ * Export all contents matching filters (no pagination)
+ * Used for CSV/JSON exports
+ */
+export async function exportContents(filters: ContentFilters = {}): Promise<Content[]> {
+  let query = supabase
+    .from('contents')
+    .select('*');
+
+  // Apply same filters as getContents
+  if (filters.status) {
+    query = query.eq('status', filters.status);
+  }
+
+  if (filters.priority) {
+    query = query.eq('priority', filters.priority);
+  }
+
+  if (filters.audience) {
+    query = query.contains('audiences', [filters.audience]);
+  }
+
+  // Order by created_at descending
+  query = query.order('created_at', { ascending: false });
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to export contents: ${error.message}`);
+  }
+
+  return data || [];
+}
