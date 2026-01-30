@@ -5,10 +5,20 @@ type ContactSync = Database['public']['Tables']['contacts_sync']['Row'];
 type Distribution = Database['public']['Tables']['distributions']['Row'];
 
 export interface ContactFilters {
+  // Search
+  search?: string;
+
+  // Inclusion filters
   segment?: string;
   investor_status?: string;
   scoreMin?: number;
   scoreMax?: number;
+
+  // Exclusion filters
+  excludeSegments?: string[];
+  excludeStatuses?: string[];
+  excludeScoreMin?: number;
+  excludeScoreMax?: number;
 }
 
 export interface ContactDetailData {

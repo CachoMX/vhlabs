@@ -41,12 +41,12 @@ export function PromptsList({ onEdit, onDuplicate }: PromptsListProps) {
       accessorKey: 'name',
       header: 'Name',
       cell: ({ row }) => (
-        <div className="max-w-md">
-          <div className="font-medium text-gray-900">
+        <div className="max-w-xs">
+          <div className="font-medium text-gray-900 truncate" title={row.original.name}>
             {row.original.name}
           </div>
           {row.original.description && (
-            <div className="text-sm text-gray-500 truncate mt-1">
+            <div className="text-sm text-gray-500 truncate mt-1" title={row.original.description}>
               {row.original.description}
             </div>
           )}

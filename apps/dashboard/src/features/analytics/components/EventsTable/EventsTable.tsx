@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge, EmptyState } from '@/components/ui';
+import { ChevronDown, ChevronRight, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Badge, EmptyState, Button } from '@/components/ui';
 import { AnalyticsFilters } from '../AnalyticsFilters/AnalyticsFilters';
 import { useGetEvents } from '../../api/get-events';
 import type { AnalyticsFilters as AnalyticsFiltersType } from '../../types';
@@ -11,9 +11,9 @@ interface EventsTableProps {
 
 export function EventsTable({ onEventClick: _onEventClick }: EventsTableProps) {
   const [filters, setFilters] = useState<AnalyticsFiltersType>({});
-  const [page, _setPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const pageSize = 10;
+  const pageSize = 50;
 
   const { data, isLoading, error } = useGetEvents({ filters, page, pageSize });
 
@@ -29,6 +29,8 @@ export function EventsTable({ onEventClick: _onEventClick }: EventsTableProps) {
     });
   };
 
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  const showPagination = totalPages > 1;
 
   if (error) {
     return (
@@ -41,8 +43,14 @@ export function EventsTable({ onEventClick: _onEventClick }: EventsTableProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AnalyticsFilters filters={filters} onFiltersChange={setFilters} mode="events" />
+
+      <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-between">
+        <div className="text-sm text-gray-700">
+          <span className="font-semibold">Total Events:</span> {data?.total?.toLocaleString() || 0}
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -54,108 +62,168 @@ export function EventsTable({ onEventClick: _onEventClick }: EventsTableProps) {
           description="Try adjusting your filters to see more results."
         />
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
-                    {/* Expander */}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Event Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Event Category
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Workflow Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Duration
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Start Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {data.data.map((event) => (
-                  <>
-                    <tr
-                      key={event.id}
-                      className={`${event.success ? 'hover:bg-gray-50' : 'bg-red-50'}`}
-                    >
-                      <td className="px-4 py-3 whitespace-nowrap w-10">
-                        <button
-                          onClick={() => toggleRowExpansion(event.id)}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          {expandedRows.has(event.id) ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="font-medium text-gray-900">
-                          {event.event_type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm text-gray-700">
-                          {event.event_category || '-'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm text-gray-700">
-                          {event.workflow_name || '-'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <Badge variant={event.success ? 'success' : 'error'} size="sm">
-                          {event.success ? 'Success' : 'Failed'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm text-gray-700">
-                          {event.duration_ms !== null ? `${event.duration_ms}ms` : '-'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm text-gray-500">
-                          {new Date(event.created_at).toLocaleString()}
-                        </span>
-                      </td>
-                    </tr>
-                    {expandedRows.has(event.id) && (
-                      <tr key={`${event.id}-expanded`}>
-                        <td colSpan={7} className="px-4 py-4 bg-gray-50">
-                          <div className="ml-6">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-2">Event Data:</h4>
-                            <pre className="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
-                              {JSON.stringify(event.event_data, null, 2)}
-                            </pre>
-                            {event.error_message && (
-                              <>
-                                <h4 className="text-sm font-semibold text-red-900 mt-4 mb-2">Error Message:</h4>
-                                <p className="text-sm text-red-800 bg-red-50 p-3 rounded border border-red-200">{event.error_message}</p>
-                              </>
+        <>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                      {/* Expander */}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Event Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Workflow
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Contact ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Duration
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Timestamp
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.data.map((event) => (
+                    <>
+                      <tr
+                        key={event.id}
+                        className={`${event.success ? 'hover:bg-gray-50' : 'bg-red-50'}`}
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap w-10">
+                          <button
+                            onClick={() => toggleRowExpansion(event.id)}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            {expandedRows.has(event.id) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
                             )}
-                          </div>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-medium text-gray-900">
+                            {event.event_type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-sm text-gray-700">
+                            {event.event_category || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-sm text-gray-700">
+                            {event.workflow_name || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-sm text-gray-500 font-mono">
+                            {event.contact_id ? event.contact_id.substring(0, 8) : '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <Badge variant={event.success ? 'success' : 'error'} size="sm">
+                            {event.success ? 'Success' : 'Failed'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-sm text-gray-700">
+                            {event.duration_ms !== null ? `${event.duration_ms}ms` : '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="text-sm text-gray-500">
+                            {new Date(event.created_at).toLocaleString()}
+                          </span>
                         </td>
                       </tr>
-                    )}
-                  </>
-                ))}
-              </tbody>
-            </table>
+                      {expandedRows.has(event.id) && (
+                        <tr key={`${event.id}-expanded`}>
+                          <td colSpan={8} className="px-4 py-4 bg-gray-50">
+                            <div className="ml-6">
+                              <h4 className="text-sm font-semibold text-gray-900 mb-2">Event Data:</h4>
+                              <pre className="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap bg-white p-3 rounded border border-gray-200">
+                                {JSON.stringify(event.event_data, null, 2)}
+                              </pre>
+                              {event.error_message && (
+                                <>
+                                  <h4 className="text-sm font-semibold text-red-900 mt-4 mb-2">Error Message:</h4>
+                                  <p className="text-sm text-red-800 bg-red-50 p-3 rounded border border-red-200">{event.error_message}</p>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Pagination */}
+          {showPagination && (
+            <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing page <span className="font-medium">{page}</span> of{' '}
+                    <span className="font-medium">{totalPages}</span>
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                    <button
+                      onClick={() => setPage(Math.max(1, page - 1))}
+                      disabled={page === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => setPage(Math.min(totalPages, page + 1))}
+                      disabled={page === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRightIcon className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

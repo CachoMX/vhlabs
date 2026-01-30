@@ -22,7 +22,7 @@ async function getContacts(params: GetContactsParams = {}): Promise<GetContactsR
     .from('v_contact_overview')
     .select('*', { count: 'exact' });
 
-  // Apply filters
+  // Apply inclusion filters
   if (filters.segment) {
     query = query.eq('segment', filters.segment);
   }
@@ -39,14 +39,39 @@ async function getContacts(params: GetContactsParams = {}): Promise<GetContactsR
     query = query.lte('score', filters.scoreMax);
   }
 
-  // Apply pagination
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-  query = query.range(from, to);
+  // Apply exclusion filters
+  if (filters.excludeSegments && filters.excludeSegments.length > 0) {
+    query = query.not('segment', 'in', `(${filters.excludeSegments.join(',')})`);
+  }
+
+  if (filters.excludeStatuses && filters.excludeStatuses.length > 0) {
+    query = query.not('investor_status', 'in', `(${filters.excludeStatuses.join(',')})`);
+  }
+
+  // Apply search filter (search in name, email, phone)
+  if (filters.search) {
+    const searchTerm = `%${filters.search}%`;
+    query = query.or(`name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`);
+  }
+
+  // Apply score exclusion filter server-side if needed
+  if (filters.excludeScoreMin !== undefined && filters.excludeScoreMax !== undefined) {
+    // Exclude scores within range (NOT between excludeMin and excludeMax)
+    query = query.or(`score.lt.${filters.excludeScoreMin},score.gt.${filters.excludeScoreMax}`);
+  } else if (filters.excludeScoreMin !== undefined) {
+    query = query.lt('score', filters.excludeScoreMin);
+  } else if (filters.excludeScoreMax !== undefined) {
+    query = query.gt('score', filters.excludeScoreMax);
+  }
 
   // Order by score descending, then last_touchpoint_at descending
   query = query.order('score', { ascending: false });
   query = query.order('last_touchpoint_at', { ascending: false, nullsFirst: false });
+
+  // Apply server-side pagination
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  query = query.range(from, to);
 
   const { data, error, count } = await query;
 

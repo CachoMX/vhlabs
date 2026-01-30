@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { PageContainer, PageHeader } from '@/components';
 import { Card, Spinner } from '@/components/ui';
-import { ContactsList, useGetContacts } from '@/features/contacts';
+import { ContactsList, useGetContacts, ContactFilters as ContactFiltersComponent } from '@/features/contacts';
+import type { ContactFilters } from '@/features/contacts';
 
 export function ContactsRoute() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
-  const { data, isLoading, error } = useGetContacts({ page, pageSize });
+  const [filters, setFilters] = useState<ContactFilters>({});
+  const { data, isLoading, error } = useGetContacts({ page, pageSize, filters });
 
   if (error) {
     return (
@@ -33,12 +35,20 @@ export function ContactsRoute() {
     setPage(1); // Reset to first page when changing page size
   };
 
+  const handleFiltersChange = (newFilters: ContactFilters) => {
+    setFilters(newFilters);
+    setPage(1); // Reset to first page when filters change
+  };
+
   return (
     <PageContainer>
       <PageHeader
         title="Contacts"
         description="View contact segments, engagement metrics, and touchpoint history"
       />
+      <div className="mb-6">
+        <ContactFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
+      </div>
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
           <Spinner size="lg" />

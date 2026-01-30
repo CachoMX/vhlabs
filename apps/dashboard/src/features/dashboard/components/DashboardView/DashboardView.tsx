@@ -4,21 +4,24 @@ import { ActivityFeed } from '@/components/ActivityFeed';
 import { KPIGrid } from '../KPIGrid/KPIGrid';
 import { SystemHealth } from '../SystemHealth/SystemHealth';
 import { DashboardFilters } from '../DashboardFilters/DashboardFilters';
+import { EngagementChart } from '../EngagementChart/EngagementChart';
+import { ContactBreakdown } from '../ContactBreakdown/ContactBreakdown';
 import { useGetKPIs } from '../../api/get-kpis';
 import { useGetRecentActivity } from '../../api/get-recent-activity';
 import { useGetSystemHealth } from '../../api/get-system-health';
+import { useGetEngagementTrends } from '../../api/get-engagement-trends';
+import { useGetContactBreakdown } from '../../api/get-contact-breakdown';
 import type { DashboardFilters as DashboardFiltersType } from '../../types';
 
 function getDefaultFilters(): DashboardFiltersType {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(today);
-  endOfDay.setHours(23, 59, 59, 999);
+  const last7Days = new Date(now);
+  last7Days.setDate(last7Days.getDate() - 7);
 
   return {
-    preset: 'today',
-    startDate: today.toISOString(),
-    endDate: endOfDay.toISOString(),
+    preset: 'last7days',
+    startDate: last7Days.toISOString(),
+    endDate: now.toISOString(),
   };
 }
 
@@ -27,6 +30,8 @@ export const DashboardView: React.FC = () => {
   const { data: kpis, isLoading: isLoadingKPIs } = useGetKPIs(filters);
   const { data: activityEvents, isLoading: isLoadingActivity } = useGetRecentActivity();
   const { data: systemHealth, isLoading: isLoadingHealth } = useGetSystemHealth();
+  const { data: engagementTrends, isLoading: isLoadingTrends } = useGetEngagementTrends(filters);
+  const { data: contactBreakdown, isLoading: isLoadingBreakdown } = useGetContactBreakdown();
 
   return (
     <div className="space-y-6">
@@ -37,6 +42,22 @@ export const DashboardView: React.FC = () => {
         isLoading={isLoadingKPIs}
       />
 
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <EngagementChart
+          data={engagementTrends || []}
+          isLoading={isLoadingTrends}
+        />
+
+        <ContactBreakdown
+          segments={contactBreakdown?.segments || []}
+          statuses={contactBreakdown?.statuses || []}
+          totalContacts={contactBreakdown?.totalContacts || 0}
+          isLoading={isLoadingBreakdown}
+        />
+      </div>
+
+      {/* Activity & Health Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6 flex flex-col">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>

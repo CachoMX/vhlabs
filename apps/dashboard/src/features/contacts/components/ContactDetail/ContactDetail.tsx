@@ -1,4 +1,5 @@
-import { Modal, Spinner, Badge } from '@/components/ui';
+import { Modal, Spinner, Badge, Tooltip } from '@/components/ui';
+import { Info } from 'lucide-react';
 import { useGetContact } from '../../api/get-contact';
 
 interface ContactDetailProps {
@@ -61,12 +62,26 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
           {/* Segment & Status */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-lg p-4">
-              <label className="text-sm font-medium text-gray-500">Segment</label>
-              <p className="text-sm text-gray-900 mt-1">{data.contact.segment || 'N/A'}</p>
+              <div className="flex items-center gap-1">
+                <label className="text-sm font-medium text-gray-500">Segment</label>
+                <Tooltip content="Contact category based on their role and interests (e.g., JV Partners, Lenders, Sellers)">
+                  <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                </Tooltip>
+              </div>
+              <p className="text-sm text-gray-900 mt-1">
+                {(data.contact as any).segment_info?.name || data.contact.segment || 'N/A'}
+              </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
-              <label className="text-sm font-medium text-gray-500">Investor Status</label>
-              <p className="text-sm text-gray-900 mt-1">{data.contact.investor_status || 'N/A'}</p>
+              <div className="flex items-center gap-1">
+                <label className="text-sm font-medium text-gray-500">Investor Status</label>
+                <Tooltip content="Current engagement level and likelihood to invest (e.g., Hot Lead, Active Investor, Cold)">
+                  <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                </Tooltip>
+              </div>
+              <p className="text-sm text-gray-900 mt-1">
+                {(data.contact as any).status_info?.name || data.contact.investor_status || 'N/A'}
+              </p>
             </div>
           </div>
 
@@ -78,8 +93,13 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
                 {/* Intent Signals */}
                 {(data.contact.parsed_notes as any).intent_signals && (data.contact.parsed_notes as any).intent_signals.length > 0 && (
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Intent Signals</label>
-                    <div className="flex flex-wrap gap-2 mt-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <label className="text-sm font-medium text-gray-700">Intent Signals</label>
+                      <Tooltip content="AI-detected indicators of investment interest (e.g., buying, partnering, funding)">
+                        <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                      </Tooltip>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       {(data.contact.parsed_notes as any).intent_signals.map((signal: string, index: number) => (
                         <Badge key={index} variant={signal === 'none' ? 'secondary' : 'info'}>
                           {signal}
@@ -92,8 +112,13 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
                 {/* Objections */}
                 {(data.contact.parsed_notes as any).objections && (data.contact.parsed_notes as any).objections.length > 0 && (
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Objections</label>
-                    <div className="flex flex-wrap gap-2 mt-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <label className="text-sm font-medium text-gray-700">Objections</label>
+                      <Tooltip content="Concerns or barriers mentioned by the contact that may prevent investment">
+                        <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                      </Tooltip>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       {(data.contact.parsed_notes as any).objections.map((objection: string, index: number) => (
                         <Badge key={index} variant={objection === 'none' ? 'secondary' : 'warning'}>
                           {objection}
@@ -107,7 +132,12 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
                 <div className="grid grid-cols-2 gap-4">
                   {(data.contact.parsed_notes as any).timeline && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Timeline</label>
+                      <div className="flex items-center gap-1">
+                        <label className="text-sm font-medium text-gray-700">Timeline</label>
+                        <Tooltip content="How soon the contact is looking to invest or make a decision">
+                          <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                        </Tooltip>
+                      </div>
                       <p className="text-sm text-gray-900 mt-1 capitalize">{(data.contact.parsed_notes as any).timeline}</p>
                     </div>
                   )}
@@ -137,19 +167,34 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
                 <div className="grid grid-cols-3 gap-4">
                   {(data.contact.parsed_notes as any).sentiment && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Sentiment</label>
+                      <div className="flex items-center gap-1">
+                        <label className="text-sm font-medium text-gray-700">Sentiment</label>
+                        <Tooltip content="Overall tone and attitude of the contact's communications (positive, neutral, negative)">
+                          <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                        </Tooltip>
+                      </div>
                       <p className="text-sm text-gray-900 mt-1 capitalize">{(data.contact.parsed_notes as any).sentiment}</p>
                     </div>
                   )}
                   {(data.contact.parsed_notes as any).recommended_status && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Recommended Status</label>
+                      <div className="flex items-center gap-1">
+                        <label className="text-sm font-medium text-gray-700">Recommended Status</label>
+                        <Tooltip content="AI-suggested investor status based on parsed insights and engagement patterns">
+                          <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                        </Tooltip>
+                      </div>
                       <p className="text-sm text-gray-900 mt-1">{(data.contact.parsed_notes as any).recommended_status}</p>
                     </div>
                   )}
                   {(data.contact.parsed_notes as any).follow_up_priority && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Follow-up Priority</label>
+                      <div className="flex items-center gap-1">
+                        <label className="text-sm font-medium text-gray-700">Follow-up Priority</label>
+                        <Tooltip content="How urgently this contact should be followed up with (high, medium, low)">
+                          <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                        </Tooltip>
+                      </div>
                       <Badge
                         variant={
                           (data.contact.parsed_notes as any).follow_up_priority === 'high'
@@ -195,19 +240,39 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Engagement Metrics</h3>
             <div className="grid grid-cols-4 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">Score</label>
+                <div className="flex items-center gap-1 mb-1">
+                  <label className="text-sm font-medium text-gray-500">Score</label>
+                  <Tooltip content="Overall engagement score based on opens, clicks, responses, and interaction quality">
+                    <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <p className="text-2xl font-bold text-gray-900">{data.contact.score}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Touchpoints</label>
+                <div className="flex items-center gap-1 mb-1">
+                  <label className="text-sm font-medium text-gray-500">Touchpoints</label>
+                  <Tooltip content="Total number of messages sent to this contact across all channels">
+                    <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <p className="text-2xl font-bold text-gray-900">{data.contact.touchpoint_count}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Responses</label>
+                <div className="flex items-center gap-1 mb-1">
+                  <label className="text-sm font-medium text-gray-500">Responses</label>
+                  <Tooltip content="Number of times this contact has replied to your messages">
+                    <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <p className="text-2xl font-bold text-gray-900">{data.contact.response_count}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Response Rate</label>
+                <div className="flex items-center gap-1 mb-1">
+                  <label className="text-sm font-medium text-gray-500">Response Rate</label>
+                  <Tooltip content="Percentage of messages that received a response from this contact">
+                    <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                  </Tooltip>
+                </div>
                 <p className="text-2xl font-bold text-gray-900">
                   {data.contact.touchpoint_count > 0
                     ? `${Math.round((data.contact.response_count / data.contact.touchpoint_count) * 100)}%`
@@ -238,8 +303,13 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
           {/* Tags */}
           {data.contact.tags && data.contact.tags.length > 0 && (
             <div className="bg-gray-50 rounded-lg p-4">
-              <label className="text-sm font-medium text-gray-500">Tags</label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex items-center gap-1 mb-2">
+                <label className="text-sm font-medium text-gray-500">Tags</label>
+                <Tooltip content="Labels and categories applied to this contact for organization and filtering">
+                  <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                </Tooltip>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 {data.contact.tags.map((tag, index) => (
                   <Badge key={index} variant="secondary">
                     {tag}

@@ -34,6 +34,11 @@ export function ContactsList({ data, pagination }: ContactsListProps) {
       cell: ({ row }) => row.original.email || 'N/A',
     },
     {
+      accessorKey: 'phone',
+      header: 'Phone',
+      cell: ({ row }) => row.original.phone || 'N/A',
+    },
+    {
       accessorKey: 'segment_name',
       header: 'Segment',
       cell: ({ row }) => row.original.segment_name || 'N/A',
