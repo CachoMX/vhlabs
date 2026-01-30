@@ -137,21 +137,16 @@ export function ContentList({ onViewDetails }: ContentListProps) {
       cell: ({ row }) => {
         const title = row.original.title || 'Untitled';
         const preview = row.original.transcript_raw
-          ? row.original.transcript_raw.substring(0, 80) + (row.original.transcript_raw.length > 80 ? '...' : '')
-          : row.original.description || 'No content';
+          ? row.original.transcript_raw.substring(0, 30) + '...'
+          : row.original.description?.substring(0, 30) + '...' || 'No content';
         return (
-          <div className="max-w-md">
-            <div className="font-medium text-gray-900 truncate">
+          <div className="w-48">
+            <div className="font-medium text-gray-900 truncate text-sm">
               {title}
             </div>
-            <div className="text-sm text-gray-500 line-clamp-2 mt-1">
+            <div className="text-xs text-gray-500 truncate mt-0.5">
               {preview}
             </div>
-            {row.original.source_url && (
-              <div className="text-xs text-gray-400 truncate mt-1">
-                Source: {row.original.source_url}
-              </div>
-            )}
           </div>
         );
       },

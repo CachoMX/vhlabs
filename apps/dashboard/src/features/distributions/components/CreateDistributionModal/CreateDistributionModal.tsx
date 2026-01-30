@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button, Card, Select, Badge } from '@/components/ui';
+import { Button, Card, Select, Badge, Input } from '@/components/ui';
 import { useGetContacts } from '@/features/contacts';
 import { useCreateDistributions } from '../../api/create-distribution';
 import type { Database } from '@/types/database.types';
@@ -19,9 +19,10 @@ export function CreateDistributionModal({ content, onClose, onSuccess }: CreateD
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch ALL contacts (no segment filter) so user can select anyone
-  const { data: contactsData } = useGetContacts({
+  const { data: contactsData, isLoading } = useGetContacts({
     filters: selectedSegment === 'all' ? {} : { segment: selectedSegment },
     pageSize: 1000, // Get all contacts for selection
   });
@@ -71,6 +72,19 @@ export function CreateDistributionModal({ content, onClose, onSuccess }: CreateD
 
   const availableContacts = contactsData?.data || [];
 
+  // Filter contacts based on search term
+  const filteredContacts = useMemo(() => {
+    if (!searchTerm) return availableContacts;
+
+    const term = searchTerm.toLowerCase();
+    return availableContacts.filter(contact =>
+      `${contact.first_name || ''} ${contact.last_name || ''}`.toLowerCase().includes(term) ||
+      contact.email?.toLowerCase().includes(term) ||
+      contact.phone?.includes(term) ||
+      contact.segment_name?.toLowerCase().includes(term)
+    );
+  }, [availableContacts, searchTerm]);
+
   const handleToggleContact = (contactId: string) => {
     const newSelected = new Set(selectedContactIds);
     if (newSelected.has(contactId)) {
@@ -86,7 +100,7 @@ export function CreateDistributionModal({ content, onClose, onSuccess }: CreateD
     if (selectAll) {
       setSelectedContactIds(new Set());
     } else {
-      setSelectedContactIds(new Set(availableContacts.map(c => c.ghl_id)));
+      setSelectedContactIds(new Set(filteredContacts.map(c => c.ghl_id)));
     }
     setSelectAll(!selectAll);
   };
@@ -180,14 +194,30 @@ export function CreateDistributionModal({ content, onClose, onSuccess }: CreateD
               </button>
             </div>
 
+            {/* Search Input */}
+            <div className="mb-4 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search by name, email, phone, or segment..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full"
+              />
+            </div>
+
             <div className="border rounded-lg max-h-96 overflow-y-auto">
-              {availableContacts.length === 0 ? (
+              {isLoading ? (
+                <div className="p-8 text-center text-gray-500">
+                  Loading contacts...
+                </div>
+              ) : filteredContacts.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   No contacts found for this segment
                 </div>
               ) : (
                 <div className="divide-y">
-                  {availableContacts.map(contact => (
+                  {filteredContacts.map(contact => (
                     <label
                       key={contact.ghl_id}
                       className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer"
@@ -204,6 +234,9 @@ export function CreateDistributionModal({ content, onClose, onSuccess }: CreateD
                         </div>
                         <div className="text-sm text-gray-500 truncate">
                           {contact.email || contact.phone}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          Segment: {contact.segment_name || 'Unknown'}
                         </div>
                       </div>
                       <Badge variant="secondary" size="sm">
