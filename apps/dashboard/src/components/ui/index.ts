@@ -33,3 +33,5 @@ export type { MetricCardProps } from './MetricCard';
 
 export { default as Tooltip } from './Tooltip';
 export type { TooltipProps } from './Tooltip';
+
+export { Skeleton, SkeletonTable, SkeletonCard, SkeletonList, SkeletonChart } from './Skeleton';

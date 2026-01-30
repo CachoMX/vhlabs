@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui';
 import { DataTable } from '@/components/DataTable';
 import { DistributionFilters } from '../DistributionFilters/DistributionFilters';
@@ -11,9 +12,41 @@ import { Eye } from 'lucide-react';
 
 
 export const DistributionsView: React.FC = () => {
-  const [filters, setFilters] = useState<Filters>({});
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize state from URL params
+  const [filters, setFilters] = useState<Filters>(() => {
+    const channel = searchParams.get('channel') || undefined;
+    const dateFrom = searchParams.get('dateFrom') || undefined;
+    const dateTo = searchParams.get('dateTo') || undefined;
+    const search = searchParams.get('search') || undefined;
+
+    return {
+      channel,
+      dateFrom,
+      dateTo,
+      search,
+    };
+  });
+
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get('page');
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
   const pageSize = 10;
+
+  // Sync URL params with filters
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (filters.channel) params.set('channel', filters.channel);
+    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.set('dateTo', filters.dateTo);
+    if (filters.search) params.set('search', filters.search);
+    if (page !== 1) params.set('page', page.toString());
+
+    setSearchParams(params, { replace: true });
+  }, [filters, page, setSearchParams]);
   const [previewDistribution, setPreviewDistribution] = useState<DistributionWithContact | null>(null);
 
   const { data: distributionsData, isLoading: isLoadingDistributions, error: distributionsError } = useGetDistributions({

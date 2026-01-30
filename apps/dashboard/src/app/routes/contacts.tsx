@@ -1,13 +1,74 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageContainer, PageHeader } from '@/components';
 import { Card, Spinner } from '@/components/ui';
 import { ContactsList, useGetContacts, ContactFilters as ContactFiltersComponent, type ContactFiltersType } from '@/features/contacts';
 
 export function ContactsRoute() {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
-  const [filters, setFilters] = useState<ContactFiltersType>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize state from URL params
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get('page');
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+
+  const [pageSize, setPageSize] = useState(() => {
+    const pageSizeParam = searchParams.get('pageSize');
+    return pageSizeParam ? parseInt(pageSizeParam, 10) : 100;
+  });
+
+  const [filters, setFilters] = useState<ContactFiltersType>(() => {
+    const search = searchParams.get('search') || undefined;
+    const segment = searchParams.get('segment') || undefined;
+    const investor_status = searchParams.get('investor_status') || undefined;
+    const scoreMin = searchParams.get('scoreMin');
+    const scoreMax = searchParams.get('scoreMax');
+    const excludeScoreMin = searchParams.get('excludeScoreMin');
+    const excludeScoreMax = searchParams.get('excludeScoreMax');
+    const excludeSegments = searchParams.get('excludeSegments')?.split(',').filter(Boolean);
+    const excludeStatuses = searchParams.get('excludeStatuses')?.split(',').filter(Boolean);
+
+    return {
+      search,
+      segment,
+      investor_status,
+      scoreMin: scoreMin ? parseInt(scoreMin, 10) : undefined,
+      scoreMax: scoreMax ? parseInt(scoreMax, 10) : undefined,
+      excludeScoreMin: excludeScoreMin ? parseInt(excludeScoreMin, 10) : undefined,
+      excludeScoreMax: excludeScoreMax ? parseInt(excludeScoreMax, 10) : undefined,
+      excludeSegments: excludeSegments && excludeSegments.length > 0 ? excludeSegments : undefined,
+      excludeStatuses: excludeStatuses && excludeStatuses.length > 0 ? excludeStatuses : undefined,
+    };
+  });
+
   const { data, isLoading, error } = useGetContacts({ page, pageSize, filters });
+
+  // Sync URL params with state
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    // Add pagination params
+    if (page !== 1) params.set('page', page.toString());
+    if (pageSize !== 100) params.set('pageSize', pageSize.toString());
+
+    // Add filter params
+    if (filters.search) params.set('search', filters.search);
+    if (filters.segment) params.set('segment', filters.segment);
+    if (filters.investor_status) params.set('investor_status', filters.investor_status);
+    if (filters.scoreMin !== undefined) params.set('scoreMin', filters.scoreMin.toString());
+    if (filters.scoreMax !== undefined) params.set('scoreMax', filters.scoreMax.toString());
+    if (filters.excludeScoreMin !== undefined) params.set('excludeScoreMin', filters.excludeScoreMin.toString());
+    if (filters.excludeScoreMax !== undefined) params.set('excludeScoreMax', filters.excludeScoreMax.toString());
+    if (filters.excludeSegments && filters.excludeSegments.length > 0) {
+      params.set('excludeSegments', filters.excludeSegments.join(','));
+    }
+    if (filters.excludeStatuses && filters.excludeStatuses.length > 0) {
+      params.set('excludeStatuses', filters.excludeStatuses.join(','));
+    }
+
+    setSearchParams(params, { replace: true });
+  }, [page, pageSize, filters, setSearchParams]);
 
   if (error) {
     return (

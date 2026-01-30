@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Select, Input, Button, type SelectOption } from '@/components/ui';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { ContactFilters as ContactFiltersType } from '../../types';
@@ -32,12 +33,21 @@ const investorStatusOptions: SelectOption[] = [
 
 export function ContactFilters({ filters, onFiltersChange }: ContactFiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [searchInput, setSearchInput] = useState(filters.search || '');
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Debounce search input
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  // Update filters when debounced search changes
+  useEffect(() => {
     onFiltersChange({
       ...filters,
-      search: e.target.value || undefined,
+      search: debouncedSearch || undefined,
     });
+  }, [debouncedSearch]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
   };
 
   const handleSegmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -133,7 +143,7 @@ export function ContactFilters({ filters, onFiltersChange }: ContactFiltersProps
             type="text"
             label="Search"
             placeholder="Search by name, email, or phone..."
-            value={filters.search || ''}
+            value={searchInput}
             onChange={handleSearchChange}
           />
         </div>

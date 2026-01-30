@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { DataTable } from '@/components/DataTable';
-import { Badge, Button, EmptyState } from '@/components/ui';
+import { Badge, Button, EmptyState, SkeletonTable, Card } from '@/components/ui';
 import { ContentFilters } from '../ContentFilters/ContentFilters';
 import { useGetContents } from '../../api/get-contents';
 import { useArchiveContent } from '../../api/archive-content';
@@ -17,9 +18,38 @@ interface ContentListProps {
 }
 
 export function ContentList({ onViewDetails }: ContentListProps) {
-  const [filters, setFilters] = useState<ContentFiltersType>({});
-  const [page, _setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize state from URL params
+  const [filters, setFilters] = useState<ContentFiltersType>(() => {
+    const statusParam = searchParams.get('status');
+    const priorityParam = searchParams.get('priority');
+    const audience = searchParams.get('audience') || undefined;
+
+    return {
+      status: statusParam as ContentFiltersType['status'],
+      priority: priorityParam as ContentFiltersType['priority'],
+      audience,
+    };
+  });
+
+  const [page, _setPage] = useState(() => {
+    const pageParam = searchParams.get('page');
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
   const pageSize = 10;
+
+  // Sync URL params with filters
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (filters.status) params.set('status', filters.status);
+    if (filters.priority) params.set('priority', filters.priority);
+    if (filters.audience) params.set('audience', filters.audience);
+    if (page !== 1) params.set('page', page.toString());
+
+    setSearchParams(params, { replace: true });
+  }, [filters, page, setSearchParams]);
 
   const { data, isLoading, error } = useGetContents({ filters, page, pageSize });
   const archiveContent = useArchiveContent();
@@ -187,9 +217,9 @@ export function ContentList({ onViewDetails }: ContentListProps) {
       <ContentFilters filters={filters} onFiltersChange={setFilters} />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-gray-500">Loading contents...</div>
-        </div>
+        <Card className="p-6">
+          <SkeletonTable rows={10} />
+        </Card>
       ) : (
         <DataTable
           data={data?.data || []}
