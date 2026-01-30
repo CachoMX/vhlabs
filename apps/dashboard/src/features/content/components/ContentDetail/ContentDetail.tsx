@@ -1,12 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useGetContent } from '../../api/get-content';
 import { useGetContentHooks } from '../../api/get-content-hooks';
+import { useGetContentDistributions } from '../../api/get-content-distributions';
 import { useUpdateContent } from '../../api/update-content';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, Select, type SelectOption, Spinner } from '@/components/ui';
-import { supabase } from '@/lib/supabase';
-import type { Database } from '@/types/database.types';
-
-type Distribution = Database['public']['Tables']['distributions']['Row'];
 
 interface ContentDetailProps {
   contentId: string;
@@ -34,37 +31,11 @@ export function ContentDetail({ contentId }: ContentDetailProps) {
     priority: string;
     status: string;
   } | null>(null);
-  const [distributions, setDistributions] = useState<Distribution[]>([]);
-  const [loadingDistributions, setLoadingDistributions] = useState(false);
 
   const { data: content, isLoading: contentLoading } = useGetContent(contentId);
   const { data: hooks, isLoading: hooksLoading } = useGetContentHooks(contentId);
+  const { data: distributions = [], isLoading: loadingDistributions } = useGetContentDistributions(contentId);
   const updateContent = useUpdateContent();
-
-  // Load distributions when content is loaded
-  useEffect(() => {
-    if (contentId) {
-      loadDistributions();
-    }
-  }, [contentId]);
-
-  const loadDistributions = async () => {
-    setLoadingDistributions(true);
-    try {
-      const { data, error } = await supabase
-        .from('distributions')
-        .select('*')
-        .eq('content_id', contentId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setDistributions(data || []);
-    } catch (err) {
-      console.error('Failed to load distributions:', err);
-    } finally {
-      setLoadingDistributions(false);
-    }
-  };
 
   const handleEdit = () => {
     if (content) {

@@ -4,9 +4,13 @@ import type { DashboardKPIs, DashboardFilters } from '../types';
 
 async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
   // Get total content count
-  const { count: totalContent } = await supabase
+  const { count: totalContent, error: contentError } = await supabase
     .from('contents')
     .select('*', { count: 'exact', head: true });
+
+  if (contentError) {
+    throw new Error(`Failed to fetch content count: ${contentError.message}`);
+  }
 
   // Get emails and SMS sent in date range
   const { startDate, endDate } = filters || {};
@@ -24,7 +28,11 @@ async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
     emailsQuery = emailsQuery.lte('sent_at', endDate);
   }
 
-  const { count: emailsSent } = await emailsQuery;
+  const { count: emailsSent, error: emailsError } = await emailsQuery;
+
+  if (emailsError) {
+    throw new Error(`Failed to fetch emails count: ${emailsError.message}`);
+  }
 
   // Query for SMS
   let smsQuery = supabase
@@ -39,12 +47,20 @@ async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
     smsQuery = smsQuery.lte('sent_at', endDate);
   }
 
-  const { count: smsSent } = await smsQuery;
+  const { count: smsSent, error: smsError } = await smsQuery;
+
+  if (smsError) {
+    throw new Error(`Failed to fetch SMS count: ${smsError.message}`);
+  }
 
   // Get distribution performance metrics
-  const { data: perfData } = await supabase
+  const { data: perfData, error: perfError } = await supabase
     .from('v_distribution_performance')
     .select('open_rate, response_rate');
+
+  if (perfError) {
+    throw new Error(`Failed to fetch performance data: ${perfError.message}`);
+  }
 
   // Calculate average open rate and response rate across all channels
   let avgOpenRate = 0;

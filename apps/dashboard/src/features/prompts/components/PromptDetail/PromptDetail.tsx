@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { useGetPrompt } from '../../api/get-prompt';
 import { useUpdatePrompt } from '../../api/update-prompt';
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Input, Textarea, Select, type SelectOption, Spinner } from '@/components/ui';
-// import type { Database } from '@/types/database.types';
-
-// type Prompt = Database['public']['Tables']['prompts']['Row'];
 
 interface PromptDetailProps {
   promptId: string;
@@ -216,7 +214,7 @@ export function PromptDetail({ promptId }: PromptDetailProps) {
                 <label className="text-sm font-medium text-gray-700">Preview with Highlighted Variables</label>
                 <div
                   className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 text-sm whitespace-pre-wrap"
-                  dangerouslySetInnerHTML={{ __html: highlightedContent }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedContent) }}
                 />
               </div>
 
