@@ -30,52 +30,32 @@ async function getContactBreakdown(): Promise<ContactBreakdownData> {
 
   const totalContacts = totalCount || 0;
 
-  // Get segment breakdown
+  // Use SQL aggregation function for segments (avoids 1000-record limit)
   const { data: segmentData, error: segmentError } = await supabase
-    .from('contacts_sync')
-    .select('segment');
+    .rpc('get_segment_counts');
 
   if (segmentError) {
     throw new Error(`Failed to fetch segments: ${segmentError.message}`);
   }
 
-  // Count segments
-  const segmentCounts: Record<string, number> = {};
-  (segmentData || []).forEach((contact) => {
-    const segment = contact.segment || 'unassigned';
-    segmentCounts[segment] = (segmentCounts[segment] || 0) + 1;
-  });
+  const segments: SegmentData[] = (segmentData || []).map((item: any) => ({
+    segment: item.segment,
+    count: parseInt(item.count),
+    percentage: totalContacts > 0 ? (parseInt(item.count) / totalContacts) * 100 : 0,
+  }));
 
-  const segments: SegmentData[] = Object.entries(segmentCounts)
-    .map(([segment, count]) => ({
-      segment,
-      count,
-      percentage: totalContacts > 0 ? (count / totalContacts) * 100 : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  // Get status breakdown
+  // Use SQL aggregation function for statuses (avoids 1000-record limit)
   const { data: statusData, error: statusError } = await supabase
-    .from('contacts_sync')
-    .select('investor_status');
+    .rpc('get_status_counts');
 
   if (statusError) {
     throw new Error(`Failed to fetch statuses: ${statusError.message}`);
   }
 
-  // Count statuses
-  const statusCounts: Record<string, number> = {};
-  (statusData || []).forEach((contact) => {
-    const status = contact.investor_status || 'unassigned';
-    statusCounts[status] = (statusCounts[status] || 0) + 1;
-  });
-
-  const statuses: StatusData[] = Object.entries(statusCounts)
-    .map(([status, count]) => ({
-      status,
-      count,
-    }))
-    .sort((a, b) => b.count - a.count);
+  const statuses: StatusData[] = (statusData || []).map((item: any) => ({
+    status: item.investor_status,
+    count: parseInt(item.count),
+  }));
 
   return {
     segments,
