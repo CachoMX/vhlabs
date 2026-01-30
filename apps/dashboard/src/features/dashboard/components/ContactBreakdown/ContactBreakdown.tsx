@@ -1,5 +1,5 @@
-import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui';
-import { Users } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, Badge, Tooltip } from '@/components/ui';
+import { Users, Info } from 'lucide-react';
 
 interface SegmentData {
   segment: string;
@@ -59,7 +59,12 @@ export function ContactBreakdown({ segments, statuses, totalContacts, isLoading 
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Contact Breakdown</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Contact Breakdown</CardTitle>
+            <Tooltip content="Distribution of all contacts in contacts_sync table by segment and investor status. Numbers are live counts from the database.">
+              <Info className="h-4 w-4 text-gray-400 cursor-help" />
+            </Tooltip>
+          </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Users className="h-4 w-4" />
             <span className="font-semibold">{totalContacts.toLocaleString()}</span> total
@@ -70,7 +75,12 @@ export function ContactBreakdown({ segments, statuses, totalContacts, isLoading 
         <div className="space-y-6">
           {/* Segments - Donut Chart */}
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-3">By Segment</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-medium text-gray-700">By Segment</h3>
+              <Tooltip content="Contacts grouped by their segment field. 'unassigned' means segment is NULL or empty in the database.">
+                <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+              </Tooltip>
+            </div>
 
             {/* Visual donut representation */}
             <div className="relative w-48 h-48 mx-auto mb-4">
@@ -127,7 +137,12 @@ export function ContactBreakdown({ segments, statuses, totalContacts, isLoading 
 
           {/* Top Statuses */}
           <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Top Investor Statuses</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-medium text-gray-700">Top Investor Statuses</h3>
+              <Tooltip content={`Shows top 5 investor statuses by contact count out of ${totalContacts.toLocaleString()} total contacts. 'unassigned' means investor_status is NULL or empty. Numbers represent actual contacts, not percentages.`}>
+                <Info className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+              </Tooltip>
+            </div>
             <div className="space-y-2">
               {statuses.slice(0, 5).map((status) => (
                 <div key={status.status} className="flex items-center justify-between">

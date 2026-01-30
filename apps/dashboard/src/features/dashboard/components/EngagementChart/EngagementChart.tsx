@@ -1,5 +1,5 @@
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, Tooltip } from '@/components/ui';
+import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 
 interface EngagementData {
   date: string;
@@ -54,7 +54,12 @@ export function EngagementChart({ data, isLoading }: EngagementChartProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Engagement Trends</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Engagement Trends</CardTitle>
+            <Tooltip content="Daily breakdown of messages sent vs responses received from the distributions table. Trend compares average response rate of last 3 days vs first 3 days in selected period.">
+              <Info className="h-4 w-4 text-gray-400 cursor-help" />
+            </Tooltip>
+          </div>
           <div className="flex items-center gap-2">
             {trend === 'up' && <TrendingUp className="h-5 w-5 text-green-600" />}
             {trend === 'down' && <TrendingDown className="h-5 w-5 text-red-600" />}
@@ -71,7 +76,12 @@ export function EngagementChart({ data, isLoading }: EngagementChartProps) {
         <div className="space-y-4">
           {/* Avg Response Rate */}
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <div className="text-sm text-blue-700 font-medium">Average Response Rate</div>
+            <div className="flex items-center gap-2 text-sm text-blue-700 font-medium">
+              Average Response Rate
+              <Tooltip content={`Calculated as: (Total Responses / Total Sent) × 100 across ${data.length} day${data.length !== 1 ? 's' : ''} in selected period`}>
+                <Info className="h-3.5 w-3.5 text-blue-500 cursor-help" />
+              </Tooltip>
+            </div>
             <div className="text-3xl font-bold text-blue-900 mt-1">{avgResponseRate.toFixed(1)}%</div>
           </div>
 
