@@ -16,12 +16,13 @@ interface CreateDistributionModalProps {
 
 export function CreateDistributionModal({ content, onClose, onSuccess }: CreateDistributionModalProps) {
   const [channel, setChannel] = useState<'email' | 'sms' | 'social'>('email');
-  const [selectedSegment, setSelectedSegment] = useState<string>(content.audiences[0] || '');
+  const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
+  // Fetch ALL contacts (no segment filter) so user can select anyone
   const { data: contactsData } = useGetContacts({
-    filters: { segment: selectedSegment },
+    filters: selectedSegment === 'all' ? {} : { segment: selectedSegment },
     pageSize: 1000, // Get all contacts for selection
   });
 
@@ -34,10 +35,38 @@ export function CreateDistributionModal({ content, onClose, onSuccess }: CreateD
   ];
 
   const segmentOptions = useMemo(() => {
-    return content.audiences.map(audience => ({
-      value: audience,
-      label: audience.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-    }));
+    // Start with "All Contacts" option
+    const options = [
+      { value: 'all', label: 'All Contacts' }
+    ];
+
+    // Add content's target audiences
+    content.audiences.forEach(audience => {
+      options.push({
+        value: audience,
+        label: audience.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      });
+    });
+
+    // Add common segments for flexibility
+    const commonSegments = [
+      'general_leads',
+      'hot_lead',
+      'active_investor',
+      'jv_potential',
+      'passive_investor'
+    ];
+
+    commonSegments.forEach(seg => {
+      if (!content.audiences.includes(seg)) {
+        options.push({
+          value: seg,
+          label: seg.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        });
+      }
+    });
+
+    return options;
   }, [content.audiences]);
 
   const availableContacts = contactsData?.data || [];
