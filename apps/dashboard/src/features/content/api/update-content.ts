@@ -29,8 +29,33 @@ export function useUpdateContent() {
 
   return useMutation({
     mutationFn: updateContent,
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['content', variables.id] });
+
+      // Snapshot previous value
+      const previousContent = queryClient.getQueryData(['content', variables.id]);
+
+      // Optimistically update content
+      queryClient.setQueryData(['content', variables.id], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          ...variables.data,
+          updated_at: new Date().toISOString(),
+        };
+      });
+
+      return { previousContent };
+    },
+    onError: (_err, variables, context) => {
+      // Rollback on error
+      if (context?.previousContent) {
+        queryClient.setQueryData(['content', variables.id], context.previousContent);
+      }
+    },
     onSuccess: (_, variables) => {
-      // Invalidate and refetch content queries
+      // Invalidate and refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['content', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['contents'] });
     },

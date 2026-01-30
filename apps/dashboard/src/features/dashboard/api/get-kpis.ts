@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import type { Database } from '@/types/database.types';
 import type { DashboardKPIs, DashboardFilters } from '../types';
+
+type DistributionPerformance = Database['public']['Views']['v_distribution_performance']['Row'];
 
 async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
   // Get total content count
@@ -67,8 +70,12 @@ async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
   let avgResponseRate = 0;
 
   if (perfData && perfData.length > 0) {
-    const openRates = perfData.map((d: any) => d.open_rate || 0).filter(rate => rate > 0);
-    const responseRates = perfData.map((d: any) => d.response_rate || 0).filter(rate => rate > 0);
+    const openRates = (perfData as DistributionPerformance[])
+      .map((d) => d.open_rate || 0)
+      .filter(rate => rate > 0);
+    const responseRates = (perfData as DistributionPerformance[])
+      .map((d) => d.response_rate || 0)
+      .filter(rate => rate > 0);
 
     avgOpenRate = openRates.length > 0
       ? openRates.reduce((sum, rate) => sum + rate, 0) / openRates.length

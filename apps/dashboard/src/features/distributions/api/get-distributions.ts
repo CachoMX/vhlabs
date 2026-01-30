@@ -5,13 +5,16 @@ import type { DistributionFilters } from '../types';
 
 type Distribution = Database['public']['Tables']['distributions']['Row'];
 
+type ContactData = {
+  ghl_id: string;
+  email: string | null;
+  phone: string | null;
+  first_name: string | null;
+  last_name: string | null;
+};
+
 export interface DistributionWithContact extends Distribution {
-  contact?: {
-    email: string | null;
-    phone: string | null;
-    first_name: string | null;
-    last_name: string | null;
-  } | null;
+  contact?: ContactData | null;
 }
 
 export interface GetDistributionsParams {
@@ -74,18 +77,18 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
   const ghlContactIds = [...new Set((distributions as Distribution[]).map(d => d.ghl_contact_id).filter(Boolean))];
 
   // Fetch contacts by ghl_id
-  let contactsData: any[] = [];
+  let contactsData: ContactData[] = [];
   if (ghlContactIds.length > 0) {
     const { data: contacts } = await supabase
       .from('contacts_sync')
       .select('ghl_id, email, phone, first_name, last_name')
       .in('ghl_id', ghlContactIds);
 
-    contactsData = contacts || [];
+    contactsData = (contacts || []) as ContactData[];
   }
 
   // Map contacts to distributions
-  const contactMap = new Map(contactsData.map(c => [c.ghl_id, c]));
+  const contactMap = new Map<string, ContactData>(contactsData.map(c => [c.ghl_id, c]));
 
   let distributionsWithContacts: DistributionWithContact[] = (distributions as Distribution[]).map(dist => ({
     ...dist,
