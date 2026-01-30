@@ -1,23 +1,33 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/features/auth';
 import { Layout } from '@/components';
+import { Spinner } from '@/components/ui';
 
-// Lazy load route components
-import { DashboardRoute } from './dashboard';
-import { ContentRoute } from './content';
-import { ContentDetailRoute } from './content-detail';
-import { DistributionsRoute } from './distributions';
-import { ContactsRoute } from './contacts';
-import { PromptsRoute } from './prompts';
-import { PromptDetailRoute } from './prompt-detail';
-import { AnalyticsRoute } from './analytics';
-import { LoginRoute } from './login';
+// Lazy load route components for better performance
+const DashboardRoute = lazy(() => import('./dashboard').then(m => ({ default: m.DashboardRoute })));
+const ContentRoute = lazy(() => import('./content').then(m => ({ default: m.ContentRoute })));
+const ContentDetailRoute = lazy(() => import('./content-detail').then(m => ({ default: m.ContentDetailRoute })));
+const DistributionsRoute = lazy(() => import('./distributions').then(m => ({ default: m.DistributionsRoute })));
+const ContactsRoute = lazy(() => import('./contacts').then(m => ({ default: m.ContactsRoute })));
+const PromptsRoute = lazy(() => import('./prompts').then(m => ({ default: m.PromptsRoute })));
+const PromptDetailRoute = lazy(() => import('./prompt-detail').then(m => ({ default: m.PromptDetailRoute })));
+const AnalyticsRoute = lazy(() => import('./analytics').then(m => ({ default: m.AnalyticsRoute })));
+const LoginRoute = lazy(() => import('./login').then(m => ({ default: m.LoginRoute })));
+
+// Loading fallback component
+const RouteLoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <Spinner size="lg" />
+  </div>
+);
 
 export function AppRoutes() {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<LoginRoute />} />
+    <Suspense fallback={<RouteLoadingFallback />}>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginRoute />} />
 
       {/* Protected routes */}
       <Route
@@ -101,8 +111,9 @@ export function AppRoutes() {
         }
       />
 
-      {/* Catch all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Catch all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

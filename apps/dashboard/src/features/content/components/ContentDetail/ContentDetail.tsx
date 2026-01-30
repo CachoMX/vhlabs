@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useGetContent } from '../../api/get-content';
 import { useGetContentHooks } from '../../api/get-content-hooks';
 import { useGetContentDistributions } from '../../api/get-content-distributions';
@@ -57,8 +58,8 @@ export function ContentDetail({ contentId }: ContentDetailProps) {
   const handleSaveEdit = async () => {
     if (!editData || !content) return;
 
-    try {
-      await updateContent.mutateAsync({
+    toast.promise(
+      updateContent.mutateAsync({
         id: contentId,
         data: {
           title: editData.title,
@@ -66,13 +67,17 @@ export function ContentDetail({ contentId }: ContentDetailProps) {
           priority: editData.priority,
           status: editData.status,
         },
-      });
-      setIsEditing(false);
-      setEditData(null);
-    } catch (err) {
-      console.error('Failed to update content:', err);
-      alert('Failed to update content. Please try again.');
-    }
+      }),
+      {
+        loading: 'Updating content...',
+        success: () => {
+          setIsEditing(false);
+          setEditData(null);
+          return 'Content updated successfully';
+        },
+        error: 'Failed to update content. Please try again.',
+      }
+    );
   };
 
   const getStatusVariant = (status: string): 'default' | 'success' | 'warning' | 'error' | 'info' => {

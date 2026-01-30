@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Eye, Archive } from 'lucide-react';
+import { toast } from 'sonner';
 import { DataTable } from '@/components/DataTable';
 import { Badge, Button, EmptyState } from '@/components/ui';
 import { ContentFilters } from '../ContentFilters/ContentFilters';
@@ -24,14 +25,14 @@ export function ContentList({ onViewDetails }: ContentListProps) {
   const archiveContent = useArchiveContent();
 
   const handleArchive = async (contentId: string) => {
-    if (window.confirm('Are you sure you want to archive this content?')) {
-      try {
-        await archiveContent.mutateAsync(contentId);
-      } catch (err) {
-        console.error('Failed to archive content:', err);
-        alert('Failed to archive content. Please try again.');
+    toast.promise(
+      archiveContent.mutateAsync(contentId),
+      {
+        loading: 'Archiving content...',
+        success: 'Content archived successfully',
+        error: 'Failed to archive content. Please try again.',
       }
-    }
+    );
   };
 
   const getStatusVariant = (status: string): 'default' | 'success' | 'warning' | 'error' | 'info' => {

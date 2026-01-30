@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { Toaster } from 'sonner';
 import { queryClient } from '@/lib/react-query';
 
 interface AppProviderProps {
@@ -13,6 +14,7 @@ export function AppProvider({ children }: AppProviderProps) {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         {children}
+        <Toaster position="top-right" richColors closeButton />
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </BrowserRouter>
