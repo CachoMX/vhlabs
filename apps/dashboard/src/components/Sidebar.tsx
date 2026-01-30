@@ -7,6 +7,7 @@ import {
   MessageSquare,
   BarChart3,
   LogOut,
+  X,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
@@ -19,20 +20,41 @@ const navigation = [
   { name: 'Analytics', to: '/analytics', icon: BarChart3 },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
-    <div className="flex w-64 flex-col bg-white border-r border-gray-200">
-      {/* Logo */}
-      <div className="flex h-16 items-center px-6 border-b border-gray-200">
+    <div
+      className={cn(
+        'flex w-64 flex-col bg-white border-r border-gray-200',
+        // Mobile: fixed sidebar with slide-in animation
+        'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0',
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      )}
+    >
+      {/* Logo and close button */}
+      <div className="flex h-16 items-center justify-between px-6 border-b border-gray-200">
         <h1 className="text-xl font-bold text-gray-900">VH Labs</h1>
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          className="lg:hidden rounded-md p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+          aria-label="Close sidebar"
+        >
+          <X className="h-6 w-6" />
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Main navigation">
         {navigation.map((item) => (
           <NavLink
             key={item.name}
             to={item.to}
+            onClick={onClose}
             className={({ isActive }) =>
               cn(
                 'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { PageContainer, PageHeader } from '@/components';
-import { Card, Spinner } from '@/components/ui';
+import { Card, Spinner, Button } from '@/components/ui';
 import { ContactsList, useGetContacts, ContactFilters as ContactFiltersComponent, type ContactFiltersType } from '@/features/contacts';
+import { downloadCSV } from '@/utils/export';
 
 export function ContactsRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -100,6 +102,24 @@ export function ContactsRoute() {
     setPage(1); // Reset to first page when filters change
   };
 
+  const handleExport = () => {
+    if (!data?.data) return;
+
+    const exportData = data.data.map(contact => ({
+      'Name': `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+      'Email': contact.email || '',
+      'Phone': contact.phone || '',
+      'Segment': contact.segment_name || '',
+      'Status': contact.status_name || '',
+      'Score': contact.score || 0,
+      'Last Touchpoint': contact.last_touchpoint_at || '',
+      'Total Touchpoints': contact.touchpoint_count || 0,
+    }));
+
+    const timestamp = new Date().toISOString().split('T')[0];
+    downloadCSV(exportData, `contacts-${timestamp}`);
+  };
+
   return (
     <PageContainer>
       <PageHeader
@@ -116,25 +136,36 @@ export function ContactsRoute() {
       ) : (
         <Card className="p-6">
           {data && (
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="text-sm text-gray-600">
                 Total Contacts: <span className="font-semibold">{data.total.toLocaleString()}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="pageSize" className="text-sm text-gray-600">
-                  Show:
-                </label>
-                <select
-                  id="pageSize"
-                  value={pageSize}
-                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              <div className="flex items-center gap-4 flex-wrap">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleExport}
+                  className="flex items-center gap-2"
                 >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span className="text-sm text-gray-600">per page</span>
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Button>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="pageSize" className="text-sm text-gray-600">
+                    Show:
+                  </label>
+                  <select
+                    id="pageSize"
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="text-sm text-gray-600">per page</span>
+                </div>
               </div>
             </div>
           )}

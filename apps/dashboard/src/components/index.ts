@@ -9,3 +9,4 @@ export { AudienceTags } from './AudienceTags';
 export { ActivityFeed } from './ActivityFeed';
 export { DataTable } from './DataTable';
 export { ErrorBoundary } from './ErrorBoundary';
+export { SkipToContent } from './SkipToContent';

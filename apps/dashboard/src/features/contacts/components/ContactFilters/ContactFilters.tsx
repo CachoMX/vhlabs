@@ -137,8 +137,8 @@ export function ContactFilters({ filters, onFiltersChange }: ContactFiltersProps
   return (
     <div className="space-y-4">
       {/* Search and Basic Filters */}
-      <div className="flex gap-4 flex-wrap items-end">
-        <div className="flex-1 min-w-[300px]">
+      <div className="flex gap-3 md:gap-4 flex-wrap items-end">
+        <div className="flex-1 min-w-[200px] sm:min-w-[300px]">
           <Input
             type="text"
             label="Search"
@@ -147,7 +147,7 @@ export function ContactFilters({ filters, onFiltersChange }: ContactFiltersProps
             onChange={handleSearchChange}
           />
         </div>
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select
             label="Segment"
             options={segmentOptions}
@@ -155,7 +155,7 @@ export function ContactFilters({ filters, onFiltersChange }: ContactFiltersProps
             onChange={handleSegmentChange}
           />
         </div>
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select
             label="Investor Status"
             options={investorStatusOptions}
@@ -163,7 +163,7 @@ export function ContactFilters({ filters, onFiltersChange }: ContactFiltersProps
             onChange={handleInvestorStatusChange}
           />
         </div>
-        <div className="w-32">
+        <div className="w-28 sm:w-32">
           <Input
             type="number"
             label="Min Score"
@@ -174,7 +174,7 @@ export function ContactFilters({ filters, onFiltersChange }: ContactFiltersProps
             onChange={handleScoreMinChange}
           />
         </div>
-        <div className="w-32">
+        <div className="w-28 sm:w-32">
           <Input
             type="number"
             label="Max Score"
