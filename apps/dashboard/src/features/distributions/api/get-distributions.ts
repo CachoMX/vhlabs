@@ -3,7 +3,6 @@ import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database.types';
 import type { DistributionFilters } from '../types';
 
-type Distribution = Database['public']['Tables']['distributions']['Row'];
 type AllDistribution = Database['public']['Views']['v_all_distributions']['Row'];
 
 type ContactData = {

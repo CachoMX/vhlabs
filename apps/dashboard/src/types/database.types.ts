@@ -594,6 +594,59 @@ export interface Database {
           updated_at?: string;
         };
       };
+      voice_calls: {
+        Row: {
+          id: string;
+          call_id: string;
+          ghl_id: string | null;
+          phone: string | null;
+          duration_seconds: number | null;
+          call_outcome: string | null;
+          segment: string | null;
+          interest_level: string | null;
+          timeline: string | null;
+          follow_up_action: string | null;
+          property_interests: string | null;
+          notes: string | null;
+          transcript: string | null;
+          recording_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          call_id: string;
+          ghl_id?: string | null;
+          phone?: string | null;
+          duration_seconds?: number | null;
+          call_outcome?: string | null;
+          segment?: string | null;
+          interest_level?: string | null;
+          timeline?: string | null;
+          follow_up_action?: string | null;
+          property_interests?: string | null;
+          notes?: string | null;
+          transcript?: string | null;
+          recording_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          call_id?: string;
+          ghl_id?: string | null;
+          phone?: string | null;
+          duration_seconds?: number | null;
+          call_outcome?: string | null;
+          segment?: string | null;
+          interest_level?: string | null;
+          timeline?: string | null;
+          follow_up_action?: string | null;
+          property_interests?: string | null;
+          notes?: string | null;
+          transcript?: string | null;
+          recording_url?: string | null;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       v_content_ready: {
@@ -644,6 +697,31 @@ export interface Database {
           open_rate: number | null;
           click_rate: number | null;
           response_rate: number | null;
+        };
+      };
+      v_all_distributions: {
+        Row: {
+          id: string;
+          ghl_id: string | null;
+          channel: string;
+          subject: string | null;
+          message_content: string | null;
+          message_type: string | null;
+          status: string | null;
+          sent_at: string | null;
+          opened_at: string | null;
+          response_received: boolean | null;
+          response_text: string | null;
+          response_sentiment: string | null;
+          response_at: string | null;
+          media_url: string | null;
+          created_at: string;
+          duration_seconds: number | null;
+          call_outcome: string | null;
+          transcript: string | null;
+          recording_url: string | null;
+          interest_level: string | null;
+          call_notes: string | null;
         };
       };
     };
