@@ -2,10 +2,10 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { Database } from '@/types/database.types';
 
-type Distribution = Database['public']['Tables']['distributions']['Row'];
+type AllDistribution = Database['public']['Views']['v_all_distributions']['Row'];
 
 interface ChannelChartProps {
-  distributions: Distribution[];
+  distributions: AllDistribution[];
 }
 
 export const ChannelChart: React.FC<ChannelChartProps> = ({ distributions }) => {
