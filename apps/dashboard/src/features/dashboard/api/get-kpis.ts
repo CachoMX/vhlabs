@@ -56,6 +56,48 @@ async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
     throw new Error(`Failed to fetch SMS count: ${smsError.message}`);
   }
 
+  // Query for voice calls (total)
+  let callsQuery = supabase
+    .from('voice_calls')
+    .select('*', { count: 'exact', head: true });
+
+  if (startDate) {
+    callsQuery = callsQuery.gte('created_at', startDate);
+  }
+  if (endDate) {
+    callsQuery = callsQuery.lte('created_at', endDate);
+  }
+
+  const { count: callsMade, error: callsError } = await callsQuery;
+
+  if (callsError) {
+    throw new Error(`Failed to fetch calls count: ${callsError.message}`);
+  }
+
+  // Query for answered calls
+  let answeredCallsQuery = supabase
+    .from('voice_calls')
+    .select('*', { count: 'exact', head: true })
+    .eq('call_outcome', 'completed');
+
+  if (startDate) {
+    answeredCallsQuery = answeredCallsQuery.gte('created_at', startDate);
+  }
+  if (endDate) {
+    answeredCallsQuery = answeredCallsQuery.lte('created_at', endDate);
+  }
+
+  const { count: callsAnswered, error: answeredError } = await answeredCallsQuery;
+
+  if (answeredError) {
+    throw new Error(`Failed to fetch answered calls count: ${answeredError.message}`);
+  }
+
+  // Calculate answer rate
+  const callAnswerRate = callsMade && callsMade > 0
+    ? Math.round((callsAnswered || 0) / callsMade * 10000) / 100
+    : 0;
+
   // Get distribution performance metrics
   const { data: perfData, error: perfError } = await supabase
     .from('v_distribution_performance')
@@ -90,6 +132,9 @@ async function fetchKPIs(filters?: DashboardFilters): Promise<DashboardKPIs> {
     totalContent: totalContent || 0,
     emailsSent: emailsSent || 0,
     smsSent: smsSent || 0,
+    callsMade: callsMade || 0,
+    callsAnswered: callsAnswered || 0,
+    callAnswerRate,
     openRate: Math.round(avgOpenRate * 100) / 100,
     responseRate: Math.round(avgResponseRate * 100) / 100,
   };

@@ -1,0 +1,353 @@
+{
+  "name": "S1-07: Voice Call Handler (Retell)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-call-complete",
+        "options": {
+          "responseMode": "onReceived"
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Retell Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "retell-call-complete"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.first().json.body;\nconst call = payload.call || {};\n\n// Solo procesar call_analyzed (ignorar call_started)\nif (payload.event !== 'call_analyzed') {\n  return { json: { skip: true, event: payload.event } };\n}\n\nconst analysis = call.call_analysis?.custom_analysis_data || {};\n\nreturn {\n  json: {\n    call_id: call.call_id,\n    from_number: call.from_number,\n    to_number: call.to_number,\n    duration_seconds: Math.round((call.duration_ms || 0) / 1000),\n    call_status: call.call_status,\n    recording_url: call.recording_url,\n    transcript: call.transcript,\n    \n    // Extracted analysis\n    segment: analysis.segment || null,\n    interest_level: analysis.interest_level || null,\n    timeline: analysis.timeline || null,\n    call_outcome: analysis.call_outcome || null,\n    follow_up_action: analysis.follow_up_action || null,\n    property_interests: analysis.property_interests || null,\n    notes: analysis.notes || null\n  }\n};"
+      },
+      "id": "parse-payload",
+      "name": "Parse Retell Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-skip",
+      "name": "Is call_analyzed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "=eq.{{ $json.to_number }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lookup-supabase",
+      "name": "Lookup Contact in Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase_auth",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-found",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-contact-found",
+      "name": "Contact Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/contacts_sync?ghl_id=eq.{{ $('Lookup Contact in Supabase').json[0].ghl_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"segment\": {{ $('Parse Retell Payload').json.segment ? '\"' + $('Parse Retell Payload').json.segment + '\"' : 'null' }},\n  \"interest_level\": {{ $('Parse Retell Payload').json.interest_level ? '\"' + $('Parse Retell Payload').json.interest_level + '\"' : 'null' }},\n  \"timeline\": {{ $('Parse Retell Payload').json.timeline ? '\"' + $('Parse Retell Payload').json.timeline + '\"' : 'null' }},\n  \"property_interests\": {{ $('Parse Retell Payload').json.property_interests ? '\"' + $('Parse Retell Payload').json.property_interests + '\"' : 'null' }},\n  \"follow_up_action\": {{ $('Parse Retell Payload').json.follow_up_action ? '\"' + $('Parse Retell Payload').json.follow_up_action + '\"' : 'null' }},\n  \"voice_call_notes\": {{ $('Parse Retell Payload').json.notes ? '\"' + $('Parse Retell Payload').json.notes.replace(/\"/g, '\\\\\"') + '\"' : 'null' }},\n  \"last_voice_call\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "update-contacts-sync",
+      "name": "Update contacts_sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase_auth",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/voice_calls",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"call_id\": \"{{ $('Parse Retell Payload').json.call_id }}\",\n  \"ghl_id\": \"{{ $('Lookup Contact in Supabase').json[0].ghl_id }}\",\n  \"phone\": \"{{ $('Parse Retell Payload').json.to_number }}\",\n  \"duration_seconds\": {{ $('Parse Retell Payload').json.duration_seconds || 0 }},\n  \"call_outcome\": {{ $('Parse Retell Payload').json.call_outcome ? '\"' + $('Parse Retell Payload').json.call_outcome + '\"' : 'null' }},\n  \"segment\": {{ $('Parse Retell Payload').json.segment ? '\"' + $('Parse Retell Payload').json.segment + '\"' : 'null' }},\n  \"interest_level\": {{ $('Parse Retell Payload').json.interest_level ? '\"' + $('Parse Retell Payload').json.interest_level + '\"' : 'null' }},\n  \"timeline\": {{ $('Parse Retell Payload').json.timeline ? '\"' + $('Parse Retell Payload').json.timeline + '\"' : 'null' }},\n  \"follow_up_action\": {{ $('Parse Retell Payload').json.follow_up_action ? '\"' + $('Parse Retell Payload').json.follow_up_action + '\"' : 'null' }},\n  \"property_interests\": {{ $('Parse Retell Payload').json.property_interests ? '\"' + $('Parse Retell Payload').json.property_interests + '\"' : 'null' }},\n  \"notes\": {{ $('Parse Retell Payload').json.notes ? '\"' + $('Parse Retell Payload').json.notes.replace(/\"/g, '\\\\\"') + '\"' : 'null' }},\n  \"recording_url\": {{ $('Parse Retell Payload').json.recording_url ? '\"' + $('Parse Retell Payload').json.recording_url + '\"' : 'null' }}\n}",
+        "options": {}
+      },
+      "id": "insert-voice-calls",
+      "name": "Insert voice_calls",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1570, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase_auth",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Lookup Contact in Supabase').json[0].ghl_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tags\": [\"{{ $('Parse Retell Payload').json.segment }}\", \"voice_contacted\"],\n  \"customFields\": [\n    {\n      \"key\": \"investor_status\",\n      \"field_value\": \"{{ $('Parse Retell Payload').json.segment }}\"\n    },\n    {\n      \"key\": \"interest_level\",\n      \"field_value\": \"{{ $('Parse Retell Payload').json.interest_level }}\"\n    },\n    {\n      \"key\": \"timeline\",\n      \"field_value\": \"{{ $('Parse Retell Payload').json.timeline }}\"\n    },\n    {\n      \"key\": \"property_interests\", \n      \"field_value\": \"{{ $('Parse Retell Payload').json.property_interests }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "update-ghl",
+      "name": "Update GHL Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1790, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ghl_auth",
+          "name": "GHL API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gxieuybdhngkkkmaxpsj.supabase.co/rest/v1/voice_calls",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"call_id\": \"{{ $('Parse Retell Payload').json.call_id }}\",\n  \"ghl_id\": null,\n  \"phone\": \"{{ $('Parse Retell Payload').json.to_number }}\",\n  \"duration_seconds\": {{ $('Parse Retell Payload').json.duration_seconds || 0 }},\n  \"call_outcome\": \"contact_not_found\",\n  \"notes\": \"Phone number not found in contacts_sync\"\n}",
+        "options": {}
+      },
+      "id": "log-not-found",
+      "name": "Log Unknown Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase_auth",
+          "name": "Supabase API Key"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "noop-skip",
+      "name": "Skip (not call_analyzed)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "Retell Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Retell Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Retell Payload": {
+      "main": [
+        [
+          {
+            "node": "Is call_analyzed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is call_analyzed?": {
+      "main": [
+        [
+          {
+            "node": "Lookup Contact in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip (not call_analyzed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Contact in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Contact Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Found?": {
+      "main": [
+        [
+          {
+            "node": "Update contacts_sync",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Unknown Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update contacts_sync": {
+      "main": [
+        [
+          {
+            "node": "Insert voice_calls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert voice_calls": {
+      "main": [
+        [
+          {
+            "node": "Update GHL Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "System 1 - AI Setter"
+    },
+    {
+      "name": "Voice Agent"
+    }
+  ]
+}

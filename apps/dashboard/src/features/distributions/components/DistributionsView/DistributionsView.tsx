@@ -228,7 +228,9 @@ export const DistributionsView: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Message Preview</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {previewDistribution.channel === 'voice' ? 'Voice Call Details' : 'Message Preview'}
+              </h3>
               <button
                 onClick={() => setPreviewDistribution(null)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -240,6 +242,107 @@ export const DistributionsView: React.FC = () => {
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Voice Call Preview */}
+              {previewDistribution.channel === 'voice' && (
+                <>
+                  {/* Recipient Info */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Recipient</h4>
+                    {previewDistribution.contact ? (
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">
+                          {[previewDistribution.contact.first_name, previewDistribution.contact.last_name]
+                            .filter(Boolean)
+                            .join(' ') || 'Unknown'}
+                        </p>
+                        <p className="text-sm text-gray-600">{previewDistribution.contact.phone}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No contact information</p>
+                    )}
+                  </div>
+
+                  {/* Call Outcome & Duration */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Call Outcome</h4>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full capitalize ${
+                        (previewDistribution as any).call_outcome === 'completed' ? 'bg-green-100 text-green-800' :
+                        (previewDistribution as any).call_outcome === 'no_answer' ? 'bg-red-100 text-red-800' :
+                        (previewDistribution as any).call_outcome === 'voicemail' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {(previewDistribution as any).call_outcome || 'unknown'}
+                      </span>
+                    </div>
+                    {(previewDistribution as any).duration_seconds !== null && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">Duration</h4>
+                        <p className="text-sm text-gray-900">
+                          {Math.floor((previewDistribution as any).duration_seconds / 60)}:{String((previewDistribution as any).duration_seconds % 60).padStart(2, '0')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Interest Level */}
+                  {(previewDistribution as any).interest_level && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Interest Level</h4>
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                        {(previewDistribution as any).interest_level}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* AI Summary */}
+                  {(previewDistribution as any).call_notes && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">AI Summary</h4>
+                      <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-900 whitespace-pre-wrap">
+                        {(previewDistribution as any).call_notes}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recording Player */}
+                  {(previewDistribution as any).recording_url && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Call Recording</h4>
+                      <audio controls className="w-full">
+                        <source src={(previewDistribution as any).recording_url} type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    </div>
+                  )}
+
+                  {/* Full Transcript */}
+                  {(previewDistribution as any).transcript && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Full Transcript</h4>
+                      <details className="bg-gray-50 rounded-lg p-4">
+                        <summary className="text-sm text-blue-600 cursor-pointer hover:text-blue-800">
+                          View Full Transcript
+                        </summary>
+                        <pre className="mt-2 text-xs text-gray-600 whitespace-pre-wrap max-h-64 overflow-y-auto">
+                          {(previewDistribution as any).transcript}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+
+                  {/* Metadata */}
+                  <div className="border-t border-gray-200 pt-4 text-xs text-gray-500 space-y-1">
+                    {previewDistribution.sent_at && (
+                      <p>Call Date: {new Date(previewDistribution.sent_at).toLocaleString()}</p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Regular Email/SMS Preview */}
+              {previewDistribution.channel !== 'voice' && (
+                <>
               {/* Recipient Info */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Recipient</h4>
@@ -335,6 +438,8 @@ export const DistributionsView: React.FC = () => {
                   <p>Responded: {new Date(previewDistribution.response_at).toLocaleString()}</p>
                 )}
               </div>
+              </>
+              )}
             </div>
           </div>
         </div>

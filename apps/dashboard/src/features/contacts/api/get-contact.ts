@@ -34,9 +34,22 @@ async function getContact(id: string): Promise<ContactDetailData> {
     throw new Error(`Failed to fetch distributions: ${distributionsError.message}`);
   }
 
+  // Fetch voice calls for this contact
+  const { data: voiceCalls, error: voiceError } = await supabase
+    .from('voice_calls')
+    .select('*')
+    .eq('ghl_id', (contact as any).ghl_id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (voiceError) {
+    throw new Error(`Failed to fetch voice calls: ${voiceError.message}`);
+  }
+
   return {
     contact,
     distributions: distributions || [],
+    voiceCalls: voiceCalls || [],
   };
 }
 

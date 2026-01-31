@@ -2,6 +2,9 @@ export interface DashboardKPIs {
   totalContent: number;
   emailsSent: number;
   smsSent: number;
+  callsMade: number;
+  callsAnswered: number;
+  callAnswerRate: number;
   openRate: number;
   responseRate: number;
 }

@@ -4,6 +4,7 @@ import type { Database } from '@/types/database.types';
 import type { DistributionFilters } from '../types';
 
 type Distribution = Database['public']['Tables']['distributions']['Row'];
+type AllDistribution = Database['public']['Views']['v_all_distributions']['Row'];
 
 type ContactData = {
   ghl_id: string;
@@ -13,7 +14,7 @@ type ContactData = {
   last_name: string | null;
 };
 
-export interface DistributionWithContact extends Distribution {
+export interface DistributionWithContact extends AllDistribution {
   contact?: ContactData | null;
 }
 
@@ -33,8 +34,9 @@ export interface GetDistributionsResponse {
 async function getDistributions(params: GetDistributionsParams = {}): Promise<GetDistributionsResponse> {
   const { filters = {}, page = 1, pageSize = 10 } = params;
 
+  // Query from unified view that includes voice calls
   let query = supabase
-    .from('distributions')
+    .from('v_all_distributions')
     .select('*', { count: 'exact' });
 
   // Apply filters
@@ -73,16 +75,16 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
     };
   }
 
-  // Get unique ghl_contact_ids
-  const ghlContactIds = [...new Set((distributions as Distribution[]).map(d => d.ghl_contact_id).filter(Boolean))];
+  // Get unique ghl_ids (unified field from view)
+  const ghlIds = [...new Set((distributions as AllDistribution[]).map(d => d.ghl_id).filter(Boolean))];
 
   // Fetch contacts by ghl_id
   let contactsData: ContactData[] = [];
-  if (ghlContactIds.length > 0) {
+  if (ghlIds.length > 0) {
     const { data: contacts } = await supabase
       .from('contacts_sync')
       .select('ghl_id, email, phone, first_name, last_name')
-      .in('ghl_id', ghlContactIds);
+      .in('ghl_id', ghlIds);
 
     contactsData = (contacts || []) as ContactData[];
   }
@@ -90,9 +92,9 @@ async function getDistributions(params: GetDistributionsParams = {}): Promise<Ge
   // Map contacts to distributions
   const contactMap = new Map<string, ContactData>(contactsData.map(c => [c.ghl_id, c]));
 
-  let distributionsWithContacts: DistributionWithContact[] = (distributions as Distribution[]).map(dist => ({
+  let distributionsWithContacts: DistributionWithContact[] = (distributions as AllDistribution[]).map(dist => ({
     ...dist,
-    contact: dist.ghl_contact_id ? contactMap.get(dist.ghl_contact_id) || null : null,
+    contact: dist.ghl_id ? contactMap.get(dist.ghl_id) || null : null,
   }));
 
   // Apply search filter (client-side filtering after joining contacts)

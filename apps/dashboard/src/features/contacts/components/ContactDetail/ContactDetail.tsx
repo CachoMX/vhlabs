@@ -319,6 +319,72 @@ export function ContactDetail({ contactId, isOpen, onClose }: ContactDetailProps
             </div>
           )}
 
+          {/* Voice Call History */}
+          {data.voiceCalls && data.voiceCalls.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Voice Call History ({data.voiceCalls.length})
+              </h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {data.voiceCalls.map((call) => (
+                  <div key={call.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={call.call_outcome === 'completed' ? 'success' : call.call_outcome === 'no_answer' ? 'error' : 'secondary'}>
+                          {call.call_outcome || 'unknown'}
+                        </Badge>
+                        {call.interest_level && (
+                          <Badge variant="info">{call.interest_level}</Badge>
+                        )}
+                        {call.duration_seconds !== null && call.duration_seconds !== undefined && (
+                          <span className="text-xs text-gray-500">
+                            {Math.floor(call.duration_seconds / 60)}:{String(call.duration_seconds % 60).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {new Date(call.created_at).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* AI Summary */}
+                    {call.notes && (
+                      <p className="text-sm text-gray-700 mb-2">{call.notes}</p>
+                    )}
+
+                    {/* Recording Player */}
+                    {call.recording_url && (
+                      <audio controls className="w-full h-8 mb-2">
+                        <source src={call.recording_url} type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    )}
+
+                    {/* Expandable Transcript */}
+                    {call.transcript && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
+                          View Full Transcript
+                        </summary>
+                        <pre className="mt-2 text-xs text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded max-h-64 overflow-y-auto">
+                          {call.transcript}
+                        </pre>
+                      </details>
+                    )}
+
+                    {/* Tags row */}
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {call.segment && <Badge variant="secondary">{call.segment}</Badge>}
+                      {call.timeline && <Badge variant="secondary">{call.timeline}</Badge>}
+                      {call.follow_up_action && <Badge variant="secondary">{call.follow_up_action}</Badge>}
+                      {call.property_interests && <Badge variant="secondary">{call.property_interests}</Badge>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Recent Distributions */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">

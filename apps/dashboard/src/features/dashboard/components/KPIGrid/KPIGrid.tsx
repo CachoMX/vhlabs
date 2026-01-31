@@ -21,32 +21,49 @@ export const KPIGrid: React.FC<KPIGridProps> = ({ kpis, isLoading }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      <MetricCard
-        label="Total Content"
-        value={kpis.totalContent}
-        description="Content items in library"
-      />
-      <MetricCard
-        label="Emails Sent"
-        value={kpis.emailsSent}
-        description="Email distributions"
-      />
-      <MetricCard
-        label="SMS Sent"
-        value={kpis.smsSent}
-        description="SMS distributions"
-      />
-      <MetricCard
-        label="Open Rate"
-        value={`${kpis.openRate}%`}
-        description="Average across channels"
-      />
-      <MetricCard
-        label="Response Rate"
-        value={`${kpis.responseRate}%`}
-        description="Average across channels"
-      />
+    <div className="space-y-4">
+      {/* Top Row: Content Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <MetricCard
+          label="Total Content"
+          value={kpis.totalContent}
+          description="Content items in library"
+        />
+        <MetricCard
+          label="Open Rate"
+          value={`${kpis.openRate}%`}
+          description="Average across channels"
+        />
+        <MetricCard
+          label="Response Rate"
+          value={`${kpis.responseRate}%`}
+          description="Average across channels"
+        />
+      </div>
+
+      {/* Bottom Row: Channel Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Emails Sent"
+          value={kpis.emailsSent}
+          description="Email distributions"
+        />
+        <MetricCard
+          label="SMS Sent"
+          value={kpis.smsSent}
+          description="SMS distributions"
+        />
+        <MetricCard
+          label="Calls Made"
+          value={kpis.callsMade}
+          description="Voice calls dispatched"
+        />
+        <MetricCard
+          label="Answer Rate"
+          value={`${kpis.callAnswerRate}%`}
+          description="Calls answered"
+        />
+      </div>
     </div>
   );
 };
